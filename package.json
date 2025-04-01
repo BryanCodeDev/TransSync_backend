@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "description": "",
+  "description": "Este es el backend del proyecto **TransSync**, desarrollado con **Node.js, Express y MySQL**. Maneja la autenticación, registro e inicio de sesión de usuarios con JWT.",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -17,9 +17,18 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "mysql": "^2.18.1",
     "mysql2": "^3.14.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BryanMunoz1/TransSync_backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BryanMunoz1/TransSync_backend/issues"
+  },
+  "homepage": "https://github.com/BryanMunoz1/TransSync_backend#readme"
 }
