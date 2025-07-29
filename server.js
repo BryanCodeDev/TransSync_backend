@@ -1,12 +1,10 @@
-// server.js - Versión corregida y optimizada
+// server.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
 // Import routes
-const authRoutes = require("./src/routes/authRoutes");
-const userRoutes = require("./src/routes/userRoutes");
-const mapRoutes = require("./src/routes/mapRoutes");
+const routes = require("./routes"); // Cambiamos para importar el index.js de routes
 
 // Initialize express app
 const app = express();
@@ -28,10 +26,8 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Routes - IMPORTANTE: mantener consistencia con /maps
-app.use("/auth", authRoutes);
-app.use("/users", userRoutes);
-app.use("/maps", mapRoutes); // Confirmar que es /maps no /map
+// Usar las rutas definidas en routes/index.js
+app.use("/api", routes); // Todas las rutas estarán bajo /api
 
 // Health check route mejorado
 app.get("/health", (req, res) => {
@@ -42,49 +38,6 @@ app.get("/health", (req, res) => {
     message: "TransSync API running",
     version: "1.1.0",
     environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Test route mejorado
-app.get("/", (req, res) => {
-  res.json({
-    message: "TransSync API running",
-    version: "1.1.0",
-    status: "healthy",
-    endpoints: {
-      auth: "/auth (POST /register, POST /login)",
-      users: "/users (GET /)",
-      maps: "/maps (GET /search/:query, GET /reverse/:lat/:lon, etc.)",
-      health: "/health (GET)"
-    },
-    documentation: "Consulta README.md para más detalles de la API"
-  });
-});
-
-// 404 handler mejorado
-app.use("*", (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Ruta ${req.method} ${req.originalUrl} no encontrada`,
-    availableEndpoints: {
-      root: "GET /",
-      health: "GET /health",
-      auth: [
-        "POST /auth/register",
-        "POST /auth/login"
-      ],
-      users: [
-        "GET /users"
-      ],
-      maps: [
-        "GET /maps/search/:query",
-        "GET /maps/reverse/:lat/:lon", 
-        "GET /maps/nearby/:lat/:lon/:type",
-        "GET /maps/route/:startLat/:startLon/:endLat/:endLon",
-        "GET /maps/place/:id"
-      ]
-    },
-    timestamp: new Date().toISOString()
   });
 });
 
@@ -124,20 +77,24 @@ process.on('SIGINT', () => {
 app.listen(PORT, () => {
   console.log(`🚀 TransSync API Server running on port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🗺️  Maps API: http://localhost:${PORT}/maps`);
+  console.log(`🗺️  Maps API: http://localhost:${PORT}/api/maps`);
+  console.log(`🚌 Transport API: http://localhost:${PORT}/api/transport`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   
   if (process.env.NODE_ENV !== 'production') {
     console.log(`\n📋 Available endpoints:`);
     console.log(`   GET  /health`);
-    console.log(`   POST /auth/register`);
-    console.log(`   POST /auth/login`);
-    console.log(`   GET  /users`);
-    console.log(`   GET  /maps/search/:query`);
-    console.log(`   GET  /maps/reverse/:lat/:lon`);
-    console.log(`   GET  /maps/nearby/:lat/:lon/:type`);
-    console.log(`   GET  /maps/route/:startLat/:startLon/:endLat/:endLon`);
-    console.log(`   GET  /maps/place/:id\n`);
+    console.log(`   POST /api/auth/register`);
+    console.log(`   POST /api/auth/login`);
+    console.log(`   GET  /api/users`);
+    console.log(`   GET  /api/maps/search/:query`);
+    console.log(`   GET  /api/maps/reverse/:lat/:lon`);
+    console.log(`   GET  /api/maps/nearby/:lat/:lon/:type`);
+    console.log(`   GET  /api/maps/route/:startLat/:startLon/:endLat/:endLon`);
+    console.log(`   GET  /api/maps/place/:id`);
+    console.log(`   GET  /api/transport/routes`);
+    console.log(`   GET  /api/transport/stops`);
+    console.log(`   POST /api/transport/stops\n`);
   }
 });
