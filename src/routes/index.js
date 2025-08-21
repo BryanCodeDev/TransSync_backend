@@ -1,4 +1,4 @@
-// src/routes/index.js - FIXED FOR EXPRESS 5
+// src/routes/index.js - ACTUALIZADO para incluir vehículos
 
 const express = require("express");
 const router = express.Router();
@@ -7,6 +7,7 @@ const pool = require("../config/db");
 const authRoutes = require("./authRoutes");
 const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
+const vehiculosRoutes = require('./vehiculosRoutes'); // ← NUEVA LÍNEA
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -35,8 +36,9 @@ router.get('/health', async (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/conductores", conductoresRoutes);
+router.use("/vehiculos", vehiculosRoutes); // ← NUEVA LÍNEA
 
-// Ruta para manejo de errores 404 - FIXED: Changed from '*' to catch-all
+// Ruta para manejo de errores 404
 router.use((req, res) => {
     res.status(404).json({
         status: 'ERROR',
