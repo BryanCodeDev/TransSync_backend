@@ -2,8 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
-const allowRoles = require('../middleware/roleMiddleware');
+const authMiddleware = require('../middlewares/authMiddleware'); // Fixed: middleware -> middlewares
+const allowRoles = require('../middlewares/roleMiddleware'); // Fixed: middleware -> middlewares
 const adminController = require('../controllers/adminControllers');
 
 // Solo accesible para SUPERADMIN
