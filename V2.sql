@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS Viajes (
 );
 
 -- =====================================================
--- INSERCIÓN DE DATOS INICIALES REQUERIDOS
+-- INSERCIÓN DE DATOS INICIALES Y EJEMPLOS
 -- =====================================================
 
 -- Insertar roles básicos del sistema
@@ -218,18 +218,43 @@ INSERT INTO Roles (nomRol) VALUES
 ('ADMINISTRADOR'),
 ('CONDUCTOR');
 
--- Insertar empresa de prueba (ID 1 como espera el código)
+-- Insertar empresas de ejemplo
 INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa) VALUES
-('TransSync Demo', '900123456-1', 'Calle 123 #45-67, Bogotá', 'demo@transync.com', '3001234567');
+('TransSync Demo', '900123456-1', 'Calle 123 #45-67, Bogotá', 'demo@transync.com', '3001234567'),
+('Transportes El Rápido S.A.S', '901234567-2', 'Avenida 80 #25-30, Medellín', 'info@elrapido.com', '3009876543');
 
--- Crear usuario SUPERADMIN para administrar el sistema
--- Contraseña: SuperAdmin123! (hasheada con bcrypt, salt rounds: 10)
+-- Crear usuario SUPERADMIN con las credenciales solicitadas
+-- Email: tiagotroller021019@gmail.com
+-- Contraseña: admin123 (hasheada con bcrypt, salt rounds: 10)
 INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa, estActivo) VALUES
-('superadmin@transync.com', '$2a$10$8K1p5Uj3N2B4F7D8G1H5JuO9LmNqPrStUvWxYzAbCdEfGhIjKlMnO', 1, 1, TRUE);
+('tiagotroller021019@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIrsKR8lGhcnDbPvN/d9YbKrOTGO0xGq', 1, 1, TRUE),
+('admin@elrapido.com', '$2a$10$8K1p5Uj3N2B4F7D8G1H5JuO9LmNqPrStUvWxYzAbCdEfGhIjKlMnO', 3, 2, TRUE),
+('conductor@elrapido.com', '$2a$10$9L2q6Vk4O3C5G8E9H2I6KvP0MnQrSuVxYzBcDfGhJkLnOpQrSuVx', 4, 2, TRUE);
 
--- Crear perfil de administrador para el SUPERADMIN
+-- Crear perfiles de administradores
 INSERT INTO Administradores (idUsuario, nomAdministrador, apeAdministrador, numDocAdministrador, idEmpresa) VALUES
-(1, 'Super', 'Admin', '1234567890', 1);
+(1, 'Bryan', 'Munoz', '1073155317', 1),
+(2, 'María José', 'Rodríguez Pérez', '98765432', 2);
+
+-- Insertar conductores de ejemplo
+INSERT INTO Conductores (idUsuario, nomConductor, apeConductor, numDocConductor, tipLicConductor, fecVenLicConductor, telConductor, estConductor, idEmpresa) VALUES
+(3, 'Carlos Alberto', 'González Martínez', '87654321', 'C2', '2025-12-31', '3156789012', 'ACTIVO', 2),
+(NULL, 'Ana Lucía', 'Vásquez Torres', '11223344', 'C1', '2026-06-15', '3187654321', 'INACTIVO', 1);
+
+-- Insertar vehículos de ejemplo
+INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa, idConductorAsignado) VALUES
+('BUS001', 'ABC123', 'Mercedes-Benz', 'OH 1626', 2020, '2025-08-30', '2025-12-15', 'DISPONIBLE', 1, NULL),
+('VAN002', 'DEF456', 'Chevrolet', 'NPR', 2019, '2025-09-15', '2026-01-20', 'EN_RUTA', 2, 1);
+
+-- Insertar rutas de ejemplo
+INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
+('Ruta Norte-Centro', 'Terminal Norte Bogotá', 'Centro Internacional Bogotá', 1),
+('Expreso Medellín-Rionegro', 'Terminal Sur Medellín', 'Aeropuerto José María Córdova', 2);
+
+-- Insertar viajes de ejemplo
+INSERT INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje) VALUES
+(1, 2, 1, '2025-08-21 08:00:00', '2025-08-21 09:30:00', 'FINALIZADO', 'Viaje completado sin novedades'),
+(2, 1, 2, '2025-08-21 14:30:00', NULL, 'EN_CURSO', 'Salida a tiempo, tráfico normal');
 
 -- =====================================================
 -- VERIFICACIÓN DE DATOS INSERTADOS
@@ -239,23 +264,93 @@ INSERT INTO Administradores (idUsuario, nomAdministrador, apeAdministrador, numD
 SELECT 'Roles creados:' as Info;
 SELECT idRol, nomRol FROM Roles;
 
--- Verificar que la empresa se creó correctamente  
-SELECT 'Empresa creada:' as Info;
+-- Verificar que las empresas se crearon correctamente  
+SELECT 'Empresas creadas:' as Info;
 SELECT idEmpresa, nomEmpresa, nitEmpresa FROM Empresas;
 
--- Verificar que el SUPERADMIN se creó correctamente
-SELECT 'Usuario SUPERADMIN creado:' as Info;
+-- Verificar que los usuarios se crearon correctamente
+SELECT 'Usuarios creados:' as Info;
 SELECT 
     u.idUsuario, 
     u.email, 
     r.nomRol as rol, 
     u.estActivo,
-    a.nomAdministrador,
-    a.apeAdministrador
+    e.nomEmpresa
 FROM Usuarios u
 JOIN Roles r ON u.idRol = r.idRol
-LEFT JOIN Administradores a ON u.idUsuario = a.idUsuario
-WHERE u.email = 'superadmin@transync.com';
+JOIN Empresas e ON u.idEmpresa = e.idEmpresa;
+
+-- Verificar administradores
+SELECT 'Administradores creados:' as Info;
+SELECT 
+    a.idAdministrador,
+    CONCAT(a.nomAdministrador, ' ', a.apeAdministrador) as nombreCompleto,
+    a.numDocAdministrador,
+    e.nomEmpresa,
+    u.email
+FROM Administradores a
+JOIN Empresas e ON a.idEmpresa = e.idEmpresa
+JOIN Usuarios u ON a.idUsuario = u.idUsuario;
+
+-- Verificar conductores
+SELECT 'Conductores creados:' as Info;
+SELECT 
+    c.idConductor,
+    CONCAT(c.nomConductor, ' ', c.apeConductor) as nombreCompleto,
+    c.numDocConductor,
+    c.tipLicConductor,
+    c.estConductor,
+    e.nomEmpresa,
+    u.email as emailUsuario
+FROM Conductores c
+JOIN Empresas e ON c.idEmpresa = e.idEmpresa
+LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario;
+
+-- Verificar vehículos
+SELECT 'Vehículos creados:' as Info;
+SELECT 
+    v.idVehiculo,
+    v.numVehiculo,
+    v.plaVehiculo,
+    CONCAT(v.marVehiculo, ' ', v.modVehiculo) as vehiculo,
+    v.anioVehiculo,
+    v.estVehiculo,
+    e.nomEmpresa,
+    CASE 
+        WHEN c.idConductor IS NOT NULL 
+        THEN CONCAT(c.nomConductor, ' ', c.apeConductor)
+        ELSE 'Sin asignar'
+    END as conductorAsignado
+FROM Vehiculos v
+JOIN Empresas e ON v.idEmpresa = e.idEmpresa
+LEFT JOIN Conductores c ON v.idConductorAsignado = c.idConductor;
+
+-- Verificar rutas
+SELECT 'Rutas creadas:' as Info;
+SELECT 
+    r.idRuta,
+    r.nomRuta,
+    r.oriRuta,
+    r.desRuta,
+    e.nomEmpresa
+FROM Rutas r
+JOIN Empresas e ON r.idEmpresa = e.idEmpresa;
+
+-- Verificar viajes
+SELECT 'Viajes creados:' as Info;
+SELECT 
+    vi.idViaje,
+    CONCAT(v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo) as vehiculo,
+    CONCAT(c.nomConductor, ' ', c.apeConductor) as conductor,
+    ru.nomRuta,
+    vi.fecHorSalViaje,
+    vi.fecHorLleViaje,
+    vi.estViaje,
+    vi.obsViaje
+FROM Viajes vi
+JOIN Vehiculos v ON vi.idVehiculo = v.idVehiculo
+JOIN Conductores c ON vi.idConductor = c.idConductor
+JOIN Rutas ru ON vi.idRuta = ru.idRuta;
 
 -- Mostrar mensaje de éxito
-SELECT 'Base de datos TransSync configurada exitosamente!' as Resultado;
+SELECT 'Base de datos TransSync configurada exitosamente con datos de ejemplo!' as Resultado;
