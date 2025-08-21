@@ -1,4 +1,4 @@
-// src/routes/index.js - ACTUALIZADO
+// src/routes/index.js - ACTUALIZADO CON CONDUCTORES
 
 const express = require("express");
 const router = express.Router();
@@ -6,6 +6,7 @@ const pool = require("../config/db");
 
 const authRoutes = require("./authRoutes");
 const adminRoutes = require('./adminRoutes');
+const conductoresRoutes = require('./conductoresRoutes');
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -30,9 +31,19 @@ router.get('/health', async (req, res) => {
     }
 });
 
-// Todas las rutas de autenticación estarán bajo /auth
-// Ejemplo: /api/auth/register
+// Rutas de la aplicación
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
+router.use("/conductores", conductoresRoutes);
+
+// Ruta para manejo de errores 404
+router.use('*', (req, res) => {
+    res.status(404).json({
+        status: 'ERROR',
+        message: 'Ruta no encontrada',
+        path: req.originalUrl,
+        method: req.method
+    });
+});
 
 module.exports = router;
