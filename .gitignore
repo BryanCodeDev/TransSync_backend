@@ -25,11 +25,6 @@ Thumbs.db
 *.tmp
 *.swp
 
-# SQL dumps o backups
-*.sql
-*.sqlite
-*.db
-
 # Coverage / pruebas
 /coverage/
 .nyc_output/
