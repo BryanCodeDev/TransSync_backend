@@ -224,10 +224,10 @@ INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa
 ('Transportes El Rápido S.A.S', '901234567-2', 'Avenida 80 #25-30, Medellín', 'info@elrapido.com', '3009876543');
 
 -- Crear usuario SUPERADMIN con las credenciales solicitadas
--- Email: tiagotroller021019@gmail.com
+-- Email: transsync1@gmail.com
 -- Contraseña: admin123 (hasheada con bcrypt, salt rounds: 10)
 INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa, estActivo) VALUES
-('tiagotroller021019@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIrsKR8lGhcnDbPvN/d9YbKrOTGO0xGq', 1, 1, TRUE),
+('transsync1@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIrsKR8lGhcnDbPvN/d9YbKrOTGO0xGq', 1, 1, TRUE),
 ('admin@elrapido.com', '$2a$10$8K1p5Uj3N2B4F7D8G1H5JuO9LmNqPrStUvWxYzAbCdEfGhIjKlMnO', 3, 2, TRUE),
 ('conductor@elrapido.com', '$2a$10$9L2q6Vk4O3C5G8E9H2I6KvP0MnQrSuVxYzBcDfGhJkLnOpQrSuVx', 4, 2, TRUE);
 
