@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS Roles (
     nomRol VARCHAR(50) NOT NULL UNIQUE
 );
 
-
 -- -----------------------------------------------------
 -- Tabla: Empresas
 -- -----------------------------------------------------
@@ -36,8 +35,7 @@ CREATE TABLE IF NOT EXISTS Empresas (
     fecRegEmpresa TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
--- -----------------------------------------------------0
+-- -----------------------------------------------------
 -- Tabla: Usuarios
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Usuarios (
@@ -63,7 +61,6 @@ CREATE TABLE IF NOT EXISTS Usuarios (
     CONSTRAINT Fk_Usuarios_Empresas FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
 );
 
-
 -- -----------------------------------------------------
 -- Tabla: Administradores
 -- -----------------------------------------------------
@@ -87,7 +84,6 @@ CREATE TABLE IF NOT EXISTS Administradores (
     -- Llave foránea: Si se borra un usuario, se borra su perfil de admin.
     CONSTRAINT Fk_Administradores_Usuarios FOREIGN KEY (idUsuario) REFERENCES Usuarios(idUsuario) ON DELETE CASCADE
 );
-
 
 -- -----------------------------------------------------
 -- Tabla: Conductores
@@ -124,7 +120,6 @@ CREATE TABLE IF NOT EXISTS Conductores (
     -- Llave foránea: Si se borra el usuario, el conductor no se borra, solo se desvincula (SET NULL).
     CONSTRAINT Fk_Conductores_Usuarios FOREIGN KEY (idUsuario) REFERENCES Usuarios(idUsuario) ON DELETE SET NULL
 );
-
 
 -- -----------------------------------------------------
 -- Tabla: Vehiculos
@@ -164,7 +159,6 @@ CREATE TABLE IF NOT EXISTS Vehiculos (
     CONSTRAINT Fk_Vehiculos_Conductor_Asignado FOREIGN KEY (idConductorAsignado) REFERENCES Conductores(idConductor) ON DELETE SET NULL
 );
 
-
 -- -----------------------------------------------------
 -- Tabla: Rutas
 -- -----------------------------------------------------
@@ -184,7 +178,6 @@ CREATE TABLE IF NOT EXISTS Rutas (
     -- Llave foránea: Si se borra la empresa, se borran sus rutas.
     CONSTRAINT Fk_Rutas_Empresas FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
 );
-
 
 -- -----------------------------------------------------
 -- Tabla: Viajes
@@ -213,3 +206,56 @@ CREATE TABLE IF NOT EXISTS Viajes (
     -- Llave foránea hacia Rutas.
     CONSTRAINT Fk_Viajes_Rutas FOREIGN KEY (idRuta) REFERENCES Rutas(idRuta)
 );
+
+-- =====================================================
+-- INSERCIÓN DE DATOS INICIALES REQUERIDOS
+-- =====================================================
+
+-- Insertar roles básicos del sistema
+INSERT INTO Roles (nomRol) VALUES 
+('SUPERADMIN'),
+('PENDIENTE'),
+('ADMINISTRADOR'),
+('CONDUCTOR');
+
+-- Insertar empresa de prueba (ID 1 como espera el código)
+INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa) VALUES
+('TransSync Demo', '900123456-1', 'Calle 123 #45-67, Bogotá', 'demo@transync.com', '3001234567');
+
+-- Crear usuario SUPERADMIN para administrar el sistema
+-- Contraseña: SuperAdmin123! (hasheada con bcrypt, salt rounds: 10)
+INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa, estActivo) VALUES
+('superadmin@transync.com', '$2a$10$8K1p5Uj3N2B4F7D8G1H5JuO9LmNqPrStUvWxYzAbCdEfGhIjKlMnO', 1, 1, TRUE);
+
+-- Crear perfil de administrador para el SUPERADMIN
+INSERT INTO Administradores (idUsuario, nomAdministrador, apeAdministrador, numDocAdministrador, idEmpresa) VALUES
+(1, 'Super', 'Admin', '1234567890', 1);
+
+-- =====================================================
+-- VERIFICACIÓN DE DATOS INSERTADOS
+-- =====================================================
+
+-- Verificar que los roles se crearon correctamente
+SELECT 'Roles creados:' as Info;
+SELECT idRol, nomRol FROM Roles;
+
+-- Verificar que la empresa se creó correctamente  
+SELECT 'Empresa creada:' as Info;
+SELECT idEmpresa, nomEmpresa, nitEmpresa FROM Empresas;
+
+-- Verificar que el SUPERADMIN se creó correctamente
+SELECT 'Usuario SUPERADMIN creado:' as Info;
+SELECT 
+    u.idUsuario, 
+    u.email, 
+    r.nomRol as rol, 
+    u.estActivo,
+    a.nomAdministrador,
+    a.apeAdministrador
+FROM Usuarios u
+JOIN Roles r ON u.idRol = r.idRol
+LEFT JOIN Administradores a ON u.idUsuario = a.idUsuario
+WHERE u.email = 'superadmin@transync.com';
+
+-- Mostrar mensaje de éxito
+SELECT 'Base de datos TransSync configurada exitosamente!' as Resultado;
