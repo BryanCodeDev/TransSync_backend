@@ -1,31 +1,41 @@
 // src/routes/adminRoutes.js
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authMiddleware = require('../middlewares/authMiddleware'); // Fixed: middleware -> middlewares
-const allowRoles = require('../middlewares/roleMiddleware'); // Fixed: middleware -> middlewares
-const adminController = require('../controllers/adminControllers');
+const adminController = require("../controllers/adminControllers");
+const authMiddleware = require("../middleware/authMiddleware");
+const allowRoles = require("../middleware/roleMiddleware");
 
-// Solo accesible para SUPERADMIN
-router.get('/solo-superadmin', authMiddleware, allowRoles('SUPERADMIN'), (req, res) => {
-    res.json({ message: `Hola SUPERADMIN ${req.user.id}, Bienvenido Al Panel Privado.` });
+// Middleware de autenticación para todas las rutas admin
+router.use(authMiddleware);
+
+// Solo SUPERADMIN puede acceder a estas rutas
+router.get("/solo-superadmin", allowRoles("SUPERADMIN"), (req, res) => {
+    res.json({ message: "Acceso autorizado para SUPERADMIN" });
 });
 
-// Endpoint para listar a los Usuarios con rol de ADMINISTRADOR o PENDIENTE para posterior asignacion.
-router.get('/listar-administradores', authMiddleware, allowRoles('SUPERADMIN'),
-adminController.listarAdministradores
+// Listar administradores (SUPERADMIN y ADMINISTRADOR pueden ver)
+router.get("/listar-administradores", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
+    adminController.listarAdministradores
 );
 
-// Endpoint para asignar Roles.
-router.put('/asignar-rol', authMiddleware, allowRoles('SUPERADMIN'), adminController.asignarRol
+// Asignar rol (solo SUPERADMIN)
+router.put("/asignar-rol", 
+    allowRoles("SUPERADMIN"), 
+    adminController.asignarRol
 );
 
-// Endpoint para editar la informacion de los administradores.
-router.put('/editar-administrador/:idUsuario', authMiddleware, allowRoles('SUPERADMIN'), adminController.editarAdministrador
+// Editar administrador (SUPERADMIN y el mismo ADMINISTRADOR)
+router.put("/editar-administrador/:idUsuario", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
+    adminController.editarAdministrador
 );
 
-// Endpoint para eliminar Administradores.
-router.delete('/eliminar-administrador/:idUsuario', authMiddleware, allowRoles('SUPERADMIN'), adminController.eliminarAdministrador
+// Eliminar administrador (solo SUPERADMIN)
+router.delete("/eliminar-administrador/:idUsuario", 
+    allowRoles("SUPERADMIN"), 
+    adminController.eliminarAdministrador
 );
 
 module.exports = router;
