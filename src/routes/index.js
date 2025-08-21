@@ -1,4 +1,4 @@
-// src/routes/index.js - ACTUALIZADO CON CONDUCTORES
+// src/routes/index.js - FIXED FOR EXPRESS 5
 
 const express = require("express");
 const router = express.Router();
@@ -36,8 +36,8 @@ router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/conductores", conductoresRoutes);
 
-// Ruta para manejo de errores 404
-router.use('*', (req, res) => {
+// Ruta para manejo de errores 404 - FIXED: Changed from '*' to catch-all
+router.use((req, res) => {
     res.status(404).json({
         status: 'ERROR',
         message: 'Ruta no encontrada',
