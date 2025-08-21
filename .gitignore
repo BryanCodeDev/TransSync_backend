@@ -1,16 +1,35 @@
-# Ignorar node_modules
+# Dependencias
+/node_modules/
 
-node_modules/
-
-# Ignorar entorno de desarollo
+# Archivos de entorno
 .env
-
-# Ignorar logs y archivos temporales.
-*.log
-.DS_Store
 .env.local
 .env.*.local
 
-# Archivos específicos de VSCode u otros editores
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# VSCode / IDE
 .vscode/
 .idea/
+
+# Archivos temporales
+*.tmp
+*.swp
+
+# SQL dumps o backups
+*.sql
+*.sqlite
+*.db
+
+# Coverage / pruebas
+/coverage/
+.nyc_output/
