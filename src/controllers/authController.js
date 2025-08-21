@@ -1,4 +1,4 @@
-// src/controllers/authController.js
+// src/controllers/authController.js - VERSIÓN CORREGIDA
 
 const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
@@ -33,7 +33,7 @@ const register = async (req, res) => {
                 .json({ message: "El Correo Electrónico Ya Está Registrado." });
         }
 
-        // **CORREGIDO: Buscar el ID del rol PENDIENTE en lugar de usar ID hardcodeado**
+        // Buscar el ID del rol PENDIENTE
         const [roleResult] = await connection.query(
             "SELECT idRol FROM Roles WHERE nomRol = 'PENDIENTE'",
             []
@@ -187,8 +187,15 @@ const register = async (req, res) => {
     }
 };
 
+// =====================================================
+// FUNCIÓN DE LOGIN CORREGIDA PARA SUPERADMIN
+// =====================================================
 const login = async (req, res) => {
     const { email, password } = req.body;
+
+    console.log('=== DEBUG LOGIN SUPERADMIN ===');
+    console.log('Email recibido:', email);
+    console.log('Password recibido:', password);
 
     if (!email || !password) {
         return res
@@ -197,13 +204,23 @@ const login = async (req, res) => {
     }
 
     try {
+        // *** CONSULTA CORREGIDA PARA INCLUIR EMPRESA ***
         const query = `
         SELECT 
-            u.idUsuario, u.email, u.passwordHash, r.nomRol as rol, u.estActivo,
-            a.nomAdministrador, a.apeAdministrador,
-            c.nomConductor, c.apeConductor
+            u.idUsuario, 
+            u.email, 
+            u.passwordHash, 
+            u.estActivo,
+            u.idEmpresa,
+            r.nomRol as rol,
+            e.nomEmpresa,
+            a.nomAdministrador, 
+            a.apeAdministrador,
+            c.nomConductor, 
+            c.apeConductor
         FROM Usuarios u
         JOIN Roles r ON u.idRol = r.idRol
+        JOIN Empresas e ON u.idEmpresa = e.idEmpresa
         LEFT JOIN Administradores a ON u.idUsuario = a.idUsuario
         LEFT JOIN Conductores c ON u.idUsuario = c.idUsuario
         WHERE u.email = ?
@@ -212,26 +229,56 @@ const login = async (req, res) => {
         const [rows] = await pool.query(query, [email]);
         const user = rows[0];
 
-        console.log("Usuario Encontrado", user);
+        console.log("Usuarios encontrados:", rows.length);
+        console.log("Usuario encontrado:", user ? {
+            id: user.idUsuario,
+            email: user.email,
+            rol: user.rol,
+            activo: user.estActivo,
+            empresa: user.nomEmpresa,
+            idEmpresa: user.idEmpresa,
+            tieneAdmin: !!user.nomAdministrador,
+            tieneConductor: !!user.nomConductor
+        } : null);
 
         if (!user) {
-            return res.status(401).json({ message: "Credenciales Inválidas." });
+            console.log('Usuario no encontrado en la base de datos');
+            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
         }
 
         if (!user.estActivo) {
-            return res.status(403).json({ message: "Cuenta No Activada." });
+            console.log('Usuario inactivo:', user.estActivo);
+            return res.status(403).json({ message: "Su cuenta está desactivada. Contacte al administrador." });
         }
 
+        // *** VERIFICACIÓN DE CONTRASEÑA CORREGIDA ***
+        console.log('Verificando contraseña...');
+        console.log('Hash almacenado:', user.passwordHash);
+        console.log('Contraseña a verificar:', password);
+        
         const isMatch = await bcrypt.compare(password, user.passwordHash);
+        console.log('Contraseña válida:', isMatch);
+
         if (!isMatch) {
-            return res.status(401).json({ message: "Credenciales Inválidas." });
+            console.log('Contraseña incorrecta');
+            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
         }
 
-        // Lógica para nombre y apellido según el rol
+        // *** LÓGICA CORREGIDA PARA NOMBRE SEGÚN EL ROL ***
         let nombre = '';
         let apellido = '';
 
-        if (user.rol === "ADMINISTRADOR" || user.rol === "SUPERADMIN") {
+        if (user.rol === "SUPERADMIN") {
+            // Para SUPERADMIN, buscar datos en la tabla Administradores
+            if (user.nomAdministrador && user.apeAdministrador) {
+                nombre = user.nomAdministrador;
+                apellido = user.apeAdministrador;
+            } else {
+                // Si no tiene perfil de administrador, usar valores por defecto
+                nombre = "Super";
+                apellido = "Admin";
+            }
+        } else if (user.rol === "ADMINISTRADOR") {
             nombre = user.nomAdministrador || "Admin";
             apellido = user.apeAdministrador || "Usuario";
         } else if (user.rol === "CONDUCTOR") {
@@ -243,19 +290,37 @@ const login = async (req, res) => {
             apellido = "Pendiente";
         }
 
+        console.log('Datos finales del usuario:', {
+            nombre,
+            apellido,
+            rol: user.rol,
+            empresa: user.nomEmpresa
+        });
+
+        // *** TOKEN MEJORADO CON MÁS INFORMACIÓN ***
         const token = jwt.sign(
-            { id: user.idUsuario, role: user.rol },
+            { 
+                id: user.idUsuario, 
+                role: user.rol,
+                idEmpresa: user.idEmpresa,
+                empresa: user.nomEmpresa
+            },
             process.env.JWT_SECRET,
             { expiresIn: "8h" }
         );
 
+        console.log('Login exitoso para:', email);
+
         res.json({
+            success: true,
             token,
             user: {
                 id: user.idUsuario,
                 name: `${nombre} ${apellido}`.trim(),
                 email: user.email,
                 role: user.rol,
+                empresa: user.nomEmpresa,
+                idEmpresa: user.idEmpresa
             },
         });
     } catch (error) {
