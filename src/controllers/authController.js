@@ -22,11 +22,6 @@ const register = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // Verificar si ya existe el numero de documento.
-        // const [existingDocument] = await connection.query(
-        //     "SELECT idUsuario FROM Usuarios WHERE document 
-        // )
-
         // Verificar si email ya existe
         const [existingEmail] = await connection.query(
             "SELECT idUsuario FROM Usuarios WHERE email = ?",
@@ -43,14 +38,14 @@ const register = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Insertar usuario con idRol = 1 (PENDIENTE)
+        // Insertar usuario con idRol = 2 (PENDIENTE)
         const [userResult] = await connection.query(
             "INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa) VALUES (?, ?, ?, ?)",
             [email, passwordHash, idRol, idEmpresa]
         );
         const newUserId = userResult.insertId;
 
-        // 🔐 Generar token de verificación y construir URL
+        // Generar token de verificación y construir URL
         const verifyToken = jwt.sign({ id: newUserId }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
         const verifyUrl = `http://localhost:5000/api/auth/verify?token=${verifyToken}`;
@@ -148,8 +143,6 @@ const register = async (req, res) => {
             `
         );
 
-        // Aquí no creamos perfil porque el rol está pendiente
-
         await connection.commit();
         res
             .status(201)
@@ -208,7 +201,7 @@ const login = async (req, res) => {
             return res.status(401).json({ message: "Credenciales Inválidas." });
         }
 
-        // 🧠 Lógica para nombre y apellido según el rol
+        // Lógica para nombre y apellido según el rol
         let nombre = '';
         let apellido = '';
 
@@ -387,7 +380,7 @@ const forgotPassword = async (req, res) => {
                         <p>¡Hola!</p>
                         <p>Has solicitado restablecer la contraseña de tu cuenta TranSync. Haz clic en el siguiente botón para continuar:</p>
                         <a href="${resetUrl}" class="email-button" target="_blank">Restablecer mi contraseña</a>
-                        <p>Este enlace expirará en 1 hora. Si no solicitaste este cambio, por favor ignora este correo.</p>
+                        <p>Este enlace expirará en 15 minutos. Si no solicitaste este cambio, por favor ignora este correo.</p>
                         <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
                         <p>¡Gracias por confiar en TranSync!</p>
                     </div>
@@ -400,7 +393,6 @@ const forgotPassword = async (req, res) => {
             </html>
             `
             );
-
 
         res.json({ message: "Correo de restablecimiento enviado." });
     } catch (error) {
@@ -417,8 +409,8 @@ const resetPassword = async (req, res) => {
         return res.status(400).json({ message: "Token y nueva contraseña son requeridos." });
     }
 
-
-    if (!esPasswordSegura(nuevaContrasena)) {
+    // CORREGIDO: usar newPassword en lugar de nuevaContrasena
+    if (!esPasswordSegura(newPassword)) {
         return res.status(400).json({
             message:
                 "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo."
