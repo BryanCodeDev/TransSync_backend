@@ -3,8 +3,8 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminControllers");
-const authMiddleware = require("../middleware/authMiddleware");
-const allowRoles = require("../middleware/roleMiddleware");
+const authMiddleware = require("../middlewares/authMiddleware");
+const allowRoles = require("../middlewares/roleMiddleware");
 
 // Middleware de autenticación para todas las rutas admin
 router.use(authMiddleware);
