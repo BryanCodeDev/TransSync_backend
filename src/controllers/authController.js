@@ -7,11 +7,10 @@ const { sendEmail } = require("../utils/emailService");
 
 const register = async (req, res) => {
     const { email, password } = req.body;
-    const idEmpresa = 1;
-    const idRol = 2; 
+    const idEmpresa = 1; // Empresa por defecto
 
     // Validaciones básicas
-    if ( !email || !password) {
+    if (!email || !password) {
         return res
             .status(400)
             .json({ message: "Todos Los Campos Son Requeridos." });
@@ -34,11 +33,39 @@ const register = async (req, res) => {
                 .json({ message: "El Correo Electrónico Ya Está Registrado." });
         }
 
+        // **CORREGIDO: Buscar el ID del rol PENDIENTE en lugar de usar ID hardcodeado**
+        const [roleResult] = await connection.query(
+            "SELECT idRol FROM Roles WHERE nomRol = 'PENDIENTE'",
+            []
+        );
+        
+        if (roleResult.length === 0) {
+            await connection.rollback();
+            return res
+                .status(500)
+                .json({ message: "Error de configuración: Rol PENDIENTE no encontrado." });
+        }
+        
+        const idRol = roleResult[0].idRol;
+
+        // Verificar que existe la empresa
+        const [empresaResult] = await connection.query(
+            "SELECT idEmpresa FROM Empresas WHERE idEmpresa = ?",
+            [idEmpresa]
+        );
+        
+        if (empresaResult.length === 0) {
+            await connection.rollback();
+            return res
+                .status(500)
+                .json({ message: "Error de configuración: Empresa no encontrada." });
+        }
+
         // Hashear la contraseña
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Insertar usuario con idRol = 2 (PENDIENTE)
+        // Insertar usuario con el rol PENDIENTE encontrado
         const [userResult] = await connection.query(
             "INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa) VALUES (?, ?, ?, ?)",
             [email, passwordHash, idRol, idEmpresa]
@@ -47,7 +74,6 @@ const register = async (req, res) => {
 
         // Generar token de verificación y construir URL
         const verifyToken = jwt.sign({ id: newUserId }, process.env.JWT_SECRET, { expiresIn: '1d' });
-
         const verifyUrl = `http://localhost:5000/api/auth/verify?token=${verifyToken}`;
 
         await sendEmail(
@@ -205,16 +231,16 @@ const login = async (req, res) => {
         let nombre = '';
         let apellido = '';
 
-        if (user.rol === "ADMINISTRADOR") {
-            nombre = user.nomAdministrador;
-            apellido = user.apeAdministrador;
+        if (user.rol === "ADMINISTRADOR" || user.rol === "SUPERADMIN") {
+            nombre = user.nomAdministrador || "Admin";
+            apellido = user.apeAdministrador || "Usuario";
         } else if (user.rol === "CONDUCTOR") {
-            nombre = user.nomConductor;
-            apellido = user.apeConductor;
+            nombre = user.nomConductor || "Conductor";
+            apellido = user.apeConductor || "Usuario";
         } else {
-            // SUPERADMIN u otros roles
-            nombre = "Super";
-            apellido = "Admin";
+            // PENDIENTE u otros roles
+            nombre = "Usuario";
+            apellido = "Pendiente";
         }
 
         const token = jwt.sign(
@@ -227,7 +253,7 @@ const login = async (req, res) => {
             token,
             user: {
                 id: user.idUsuario,
-                name: `${nombre} ${apellido}`,
+                name: `${nombre} ${apellido}`.trim(),
                 email: user.email,
                 role: user.rol,
             },
@@ -237,7 +263,6 @@ const login = async (req, res) => {
         res.status(500).json({ message: "Error En El Servidor." });
     }
 };
-
 
 const verifyAccount = async (req, res) => {
     const { token } = req.query;
@@ -250,7 +275,7 @@ const verifyAccount = async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.id;
 
-        // Activar la cuenta (y opcionalmente cambiar el rol si deseas)
+        // Activar la cuenta
         const [result] = await pool.query(
             'UPDATE Usuarios SET estActivo = 1 WHERE idUsuario = ?',
             [userId]
@@ -347,7 +372,7 @@ const forgotPassword = async (req, res) => {
                     .email-button {
                         display: inline-block;
                         padding: 12px 25px;
-                        background-color: #dc3545; /* rojo para atención */
+                        background-color: #dc3545;
                         color: #ffffff;
                         text-decoration: none;
                         border-radius: 4px;
@@ -392,7 +417,7 @@ const forgotPassword = async (req, res) => {
             </body>
             </html>
             `
-            );
+        );
 
         res.json({ message: "Correo de restablecimiento enviado." });
     } catch (error) {
@@ -409,7 +434,6 @@ const resetPassword = async (req, res) => {
         return res.status(400).json({ message: "Token y nueva contraseña son requeridos." });
     }
 
-    // CORREGIDO: usar newPassword en lugar de nuevaContrasena
     if (!esPasswordSegura(newPassword)) {
         return res.status(400).json({
             message:
