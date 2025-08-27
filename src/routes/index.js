@@ -1,4 +1,4 @@
-// src/routes/index.js - ACTUALIZADO para incluir vehículos
+// src/routes/index.js - UPDATED to include dashboard routes
 
 const express = require("express");
 const router = express.Router();
@@ -7,7 +7,9 @@ const pool = require("../config/db");
 const authRoutes = require("./authRoutes");
 const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
-const vehiculosRoutes = require('./vehiculosRoutes'); // ← NUEVA LÍNEA
+const vehiculosRoutes = require('./vehiculosRoutes');
+const dashboardRoutes = require('./dashboardRoutes'); // ← NEW
+const chatbotRoutes = require('./chatbotRoutes');
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -36,7 +38,9 @@ router.get('/health', async (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/conductores", conductoresRoutes);
-router.use("/vehiculos", vehiculosRoutes); // ← NUEVA LÍNEA
+router.use("/vehiculos", vehiculosRoutes);
+router.use("/dashboard", dashboardRoutes); // ← NEW
+router.use("/chatbot", chatbotRoutes);
 
 // Ruta para manejo de errores 404
 router.use((req, res) => {
@@ -44,7 +48,16 @@ router.use((req, res) => {
         status: 'ERROR',
         message: 'Ruta no encontrada',
         path: req.originalUrl,
-        method: req.method
+        method: req.method,
+        availableEndpoints: [
+            '/api/health',
+            '/api/auth/*',
+            '/api/admin/*',
+            '/api/conductores/*',
+            '/api/vehiculos/*',
+            '/api/dashboard/*',
+            '/api/chatbot/*'
+        ]
     });
 });
 
