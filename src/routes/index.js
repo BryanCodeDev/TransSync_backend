@@ -1,4 +1,4 @@
-// src/routes/index.js - ACTUALIZADO para incluir vehículos
+// src/routes/index.js - FIXED to include chatbot routes
 
 const express = require("express");
 const router = express.Router();
@@ -7,7 +7,8 @@ const pool = require("../config/db");
 const authRoutes = require("./authRoutes");
 const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
-const vehiculosRoutes = require('./vehiculosRoutes'); // ← NUEVA LÍNEA
+const vehiculosRoutes = require('./vehiculosRoutes');
+const chatbotRoutes = require('./chatbotRoutes'); // ← ADD THIS LINE
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -36,7 +37,8 @@ router.get('/health', async (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/conductores", conductoresRoutes);
-router.use("/vehiculos", vehiculosRoutes); // ← NUEVA LÍNEA
+router.use("/vehiculos", vehiculosRoutes);
+router.use("/chatbot", chatbotRoutes);
 
 // Ruta para manejo de errores 404
 router.use((req, res) => {
