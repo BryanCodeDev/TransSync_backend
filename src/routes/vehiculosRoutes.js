@@ -1,5 +1,4 @@
 // src/routes/vehiculosRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const vehiculosController = require('../controllers/vehiculosController');
@@ -8,6 +7,9 @@ const allowRoles = require('../middleware/roleMiddleware');
 
 // Middleware de autenticación para todas las rutas
 router.use(authMiddleware);
+
+// === Utils (Selects) ===
+router.get('/utils/select', vehiculosController.getVehiculosSelect);
 
 // IMPORTANT: Specific routes must come BEFORE generic parametrized routes
 

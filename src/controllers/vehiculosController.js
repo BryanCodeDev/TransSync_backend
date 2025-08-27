@@ -666,6 +666,40 @@ const verificarVencimientosVehiculos = async (req, res) => {
     }
 };
 
+// Obtener lista simple de vehículos para selects
+const getVehiculosSelect = async (req, res) => {
+    try {
+        const { idEmpresa = 1 } = req.query;
+
+        const [vehiculos] = await pool.query(
+            `SELECT 
+                idVehiculo, 
+                plaVehiculo, 
+                modVehiculo,
+                marVehiculo,
+                numVehiculo 
+             FROM Vehiculos 
+             WHERE idEmpresa = ? AND estVehiculo IN ('DISPONIBLE', 'EN_MANTENIMIENTO')
+             ORDER BY plaVehiculo ASC`,
+            [idEmpresa]
+        );
+
+        // Formatear exactamente como lo espera el frontend React
+        const vehiculosFormateados = vehiculos.map(v => ({
+            idVehiculo: v.idVehiculo,
+            placaVehiculo: v.plaVehiculo,           // Nombre que espera React
+            modeloVehiculo: `${v.marVehiculo} ${v.modVehiculo}`, // Marca + Modelo
+            numeroInterno: v.numVehiculo            // Por si lo necesitas
+        }));
+
+        res.json(vehiculosFormateados);
+        
+    } catch (error) {
+        console.error('Error al obtener lista de vehículos para select:', error);
+        res.status(500).json({ message: 'Error del servidor al obtener vehículos.' });
+    }
+};
+
 module.exports = {
     getVehiculos,
     getVehiculoById,
@@ -676,5 +710,6 @@ module.exports = {
     asignarConductorVehiculo,
     desasignarConductorVehiculo,
     getEstadisticasVehiculos,
-    verificarVencimientosVehiculos
+    verificarVencimientosVehiculos,
+    getVehiculosSelect   // <-- Función actualizada para el select
 };

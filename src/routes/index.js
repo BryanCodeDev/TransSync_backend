@@ -8,6 +8,7 @@ const authRoutes = require("./authRoutes");
 const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
 const vehiculosRoutes = require('./vehiculosRoutes');
+const rutasRoutes = require("./rutasRoutes");
 const dashboardRoutes = require('./dashboardRoutes'); // ← NEW
 const chatbotRoutes = require('./chatbotRoutes');
 
@@ -42,6 +43,7 @@ router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/conductores", conductoresRoutes);
 router.use("/vehiculos", vehiculosRoutes);
+router.use("/rutas", rutasRoutes);
 router.use("/dashboard", dashboardRoutes); // ← NEW
 router.use("/chatbot", chatbotRoutes);
 
@@ -58,6 +60,7 @@ router.use((req, res) => {
             '/api/admin/*',
             '/api/conductores/*',
             '/api/vehiculos/*',
+            '/api/rutas/*',       // ← FALTA ESTA
             '/api/dashboard/*',
             '/api/chatbot/*'
         ]
