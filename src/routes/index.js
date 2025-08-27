@@ -9,6 +9,9 @@ const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
 const vehiculosRoutes = require('./vehiculosRoutes'); // ← NUEVA LÍNEA
 
+const viajesRoutes = require('./viajesRoutes');
+router.use('/viajes', viajesRoutes);
+
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
     try {
