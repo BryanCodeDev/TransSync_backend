@@ -4,9 +4,7 @@ const pool = require('../config/db');
 // Obtener todos los conductores
 const getConductores = async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT * FROM Conductores
-    `);
+    const [rows] = await pool.query(`SELECT * FROM Conductores`);
     res.json(rows);
   } catch (error) {
     console.error('Error al obtener conductores:', error);
@@ -100,7 +98,7 @@ const eliminarConductor = async (req, res) => {
 // Cambiar estado del conductor (activo/inactivo)
 const cambiarEstadoConductor = async (req, res) => {
   const { id } = req.params;
-  const { estado } = req.body; // ejemplo: { estado: 'INACTIVO' }
+  const { estado } = req.body;
   try {
     const [result] = await pool.query(
       `UPDATE Conductores SET estado = ? WHERE idConductor = ?`,
@@ -159,7 +157,7 @@ const desasignarVehiculoConductor = async (req, res) => {
   }
 };
 
-// ✅ Nuevo: Obtener conductores para SELECT (solo id y nombre completo)
+// Obtener conductores para SELECT
 const getConductoresSelect = async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -167,16 +165,60 @@ const getConductoresSelect = async (req, res) => {
         idConductor, 
         CONCAT(nomConductor, ' ', apeConductor) AS nombreCompleto
       FROM Conductores
-      WHERE idEmpresa = 1
       ORDER BY nomConductor, apeConductor
     `);
-
     res.json(rows);
   } catch (error) {
     console.error('Error al obtener conductores para select:', error);
     res.status(500).json({ message: 'Error del servidor.' });
   }
 };
+
+// ==================== NUEVAS FUNCIONES ====================
+
+// Obtener conductores disponibles (ejemplo: sin vehículo asignado)
+const getConductoresDisponibles = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM Conductores WHERE idVehiculo IS NULL
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener conductores disponibles:', error);
+    res.status(500).json({ message: 'Error del servidor.' });
+  }
+};
+
+// Obtener estadísticas de conductores (ejemplo: activos e inactivos)
+const getEstadisticasConductores = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT estado, COUNT(*) AS total
+      FROM Conductores
+      GROUP BY estado
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener estadísticas de conductores:', error);
+    res.status(500).json({ message: 'Error del servidor.' });
+  }
+};
+
+// Verificar vencimiento de licencias (ejemplo: fecha anterior a hoy)
+const verificarVencimientoLicencias = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM Conductores 
+      WHERE licencia < CURDATE()
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al verificar licencias:', error);
+    res.status(500).json({ message: 'Error del servidor.' });
+  }
+};
+
+// ==================== EXPORTS ====================
 
 module.exports = {
   getConductores,
@@ -187,5 +229,8 @@ module.exports = {
   cambiarEstadoConductor,
   asignarVehiculoConductor,
   desasignarVehiculoConductor,
-  getConductoresSelect // 👈 agregado aquí
+  getConductoresSelect,
+  getConductoresDisponibles,
+  getEstadisticasConductores,
+  verificarVencimientoLicencias
 };
