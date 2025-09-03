@@ -1,19 +1,20 @@
-// src/routes/index.js - UPDATED to include dashboard routes
-
-const express = require("express");
+// routes/index.js
+const express = require('express');
 const router = express.Router();
-const pool = require("../config/db");
 
-const authRoutes = require("./authRoutes");
+// Import database connection
+const pool = require('../config/db'); // Using your existing db.js file
+
+// Importar todas las rutas
+const authRoutes = require('./authRoutes');
 const adminRoutes = require('./adminRoutes');
 const conductoresRoutes = require('./conductoresRoutes');
 const vehiculosRoutes = require('./vehiculosRoutes');
-const rutasRoutes = require("./rutasRoutes");
-const dashboardRoutes = require('./dashboardRoutes'); // ← NEW
-const chatbotRoutes = require('./chatbotRoutes');
-
+const rutasRoutes = require('./rutasRoutes');
 const viajesRoutes = require('./viajesRoutes');
-router.use('/viajes', viajesRoutes);
+const dashboardRoutes = require('./dashboardRoutes');
+const chatbotRoutes = require('./chatbotRoutes');
+const mapRoutes = require('./mapRoutes'); // Nueva ruta de mapas
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -33,19 +34,22 @@ router.get('/health', async (req, res) => {
             status: 'ERROR',
             message: 'Error en la base de datos',
             timestamp: new Date().toISOString(),
-            database: 'Disconnected'
+            database: 'Disconnected',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
 // Rutas de la aplicación
-router.use("/auth", authRoutes);
-router.use("/admin", adminRoutes);
-router.use("/conductores", conductoresRoutes);
-router.use("/vehiculos", vehiculosRoutes);
-router.use("/rutas", rutasRoutes);
-router.use("/dashboard", dashboardRoutes); // ← NEW
-router.use("/chatbot", chatbotRoutes);
+router.use('/auth', authRoutes);
+router.use('/admin', adminRoutes);
+router.use('/conductores', conductoresRoutes);
+router.use('/vehiculos', vehiculosRoutes);
+router.use('/rutas', rutasRoutes);
+router.use('/viajes', viajesRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/chatbot', chatbotRoutes);
+router.use('/map', mapRoutes); // Nueva ruta de mapas
 
 // Ruta para manejo de errores 404
 router.use((req, res) => {
@@ -54,15 +58,18 @@ router.use((req, res) => {
         message: 'Ruta no encontrada',
         path: req.originalUrl,
         method: req.method,
+        timestamp: new Date().toISOString(),
         availableEndpoints: [
             '/api/health',
             '/api/auth/*',
             '/api/admin/*',
             '/api/conductores/*',
             '/api/vehiculos/*',
-            '/api/rutas/*',       // ← FALTA ESTA
+            '/api/rutas/*',
+            '/api/viajes/*',
             '/api/dashboard/*',
-            '/api/chatbot/*'
+            '/api/chatbot/*',
+            '/api/map/*' // Nueva ruta de mapas
         ]
     });
 });
