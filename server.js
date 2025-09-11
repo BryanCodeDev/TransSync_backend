@@ -15,10 +15,13 @@ const corsOptions = {
     'http://localhost:3000',        // Web app
     'http://10.0.2.2:8081',         // Emulador Android con Expo
     'http://localhost:8081',        // Expo local
-    'http://192.168.1.100:8081',    // Dispositivo físico (ajusta tu IP)
-    'exp://192.168.1.100:19000',    // Expo tunnel
+    'http://192.168.1.56:8081',     // CAMBIA por tu IP local
+    'exp://192.168.1.56:19000',     // Expo tunnel con tu IP
     'http://localhost:19006',       // Expo web
     '*://localhost*',               // Cualquier puerto localhost
+    // Agregar más IPs si es necesario
+    'http://192.168.1.56:*',        // Cualquier puerto de tu IP
+    'exp://*',                      // Cualquier túnel de Expo
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
