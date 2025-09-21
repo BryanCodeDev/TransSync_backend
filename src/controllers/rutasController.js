@@ -68,10 +68,31 @@ const eliminarRuta = async (req, res) => {
   }
 };
 
+const getParadasRuta = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar que la ruta existe
+    const [ruta] = await pool.query('SELECT * FROM Rutas WHERE idRuta = ?', [id]);
+    if (ruta.length === 0) {
+      return res.status(404).json({ message: 'Ruta no encontrada.' });
+    }
+
+    // Por ahora retornar array vacío ya que no hay tabla de paradas
+    // En el futuro se puede implementar con coordenadas de la ruta
+    res.json([]);
+
+  } catch (error) {
+    console.error('Error al obtener paradas de ruta:', error);
+    res.status(500).json({ message: 'Error del servidor.' });
+  }
+};
+
 module.exports = {
   getRutasSelect,
   getRutas,
   crearRuta,
   actualizarRuta,
-  eliminarRuta
+  eliminarRuta,
+  getParadasRuta
 };

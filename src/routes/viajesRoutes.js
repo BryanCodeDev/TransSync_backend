@@ -9,21 +9,22 @@ router.get("/", async (req, res) => {
     
     // Query con JOINs para obtener información completa
     const [rows] = await pool.query(`
-      SELECT 
+      SELECT
         v.*,
         veh.plaVehiculo,
         veh.marVehiculo,
         veh.modVehiculo,
         veh.numVehiculo,
-        c.nomConductor,
-        c.apeConductor,
-        c.numDocConductor,
+        u.nomUsuario as nomConductor,
+        u.apeUsuario as apeConductor,
+        u.numDocUsuario as numDocConductor,
         r.nomRuta,
         r.oriRuta,
         r.desRuta
       FROM Viajes v
       LEFT JOIN Vehiculos veh ON v.idVehiculo = veh.idVehiculo
       LEFT JOIN Conductores c ON v.idConductor = c.idConductor
+      LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario
       LEFT JOIN Rutas r ON v.idRuta = r.idRuta
       ORDER BY v.fecHorSalViaje DESC
     `);
@@ -42,21 +43,22 @@ router.get("/:id", async (req, res) => {
     console.log("📌 Entrando a GET /api/viajes/:id con ID:", id);
     
     const [rows] = await pool.query(`
-      SELECT 
+      SELECT
         v.*,
         veh.plaVehiculo,
         veh.marVehiculo,
         veh.modVehiculo,
         veh.numVehiculo,
-        c.nomConductor,
-        c.apeConductor,
-        c.numDocConductor,
+        u.nomUsuario as nomConductor,
+        u.apeUsuario as apeConductor,
+        u.numDocUsuario as numDocConductor,
         r.nomRuta,
         r.oriRuta,
         r.desRuta
       FROM Viajes v
       LEFT JOIN Vehiculos veh ON v.idVehiculo = veh.idVehiculo
       LEFT JOIN Conductores c ON v.idConductor = c.idConductor
+      LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario
       LEFT JOIN Rutas r ON v.idRuta = r.idRuta
       WHERE v.idViaje = ?
     `, [id]);

@@ -5,10 +5,10 @@ const pool = require('../config/db');
 // Obtener todos los vehículos con información de conductores
 const getVehiculos = async (req, res) => {
     try {
-        const { 
-            estado, 
-            idEmpresa = 1, // Por defecto empresa 1
-            page = 1, 
+        const {
+            estado,
+            idEmpresa = req.user?.idEmpresa || 1, // Por defecto empresa 1 o del usuario autenticado
+            page = 1,
             limit = 100,
             search = ''
         } = req.query;
@@ -27,13 +27,14 @@ const getVehiculos = async (req, res) => {
                 v.fecCreVehiculo,
                 v.fecUltModVehiculo,
                 c.idConductor,
-                c.nomConductor,
-                c.apeConductor,
-                c.numDocConductor,
-                c.telConductor,
+                u.nomUsuario as nomConductor,
+                u.apeUsuario as apeConductor,
+                u.numDocUsuario as numDocConductor,
+                u.telUsuario as telConductor,
                 e.nomEmpresa
             FROM Vehiculos v
             LEFT JOIN Conductores c ON v.idConductorAsignado = c.idConductor
+            LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario
             LEFT JOIN Empresas e ON v.idEmpresa = e.idEmpresa
             WHERE v.idEmpresa = ?
         `;
@@ -48,7 +49,7 @@ const getVehiculos = async (req, res) => {
 
         // Filtro de búsqueda
         if (search) {
-            query += ` AND (v.plaVehiculo LIKE ? OR v.marVehiculo LIKE ? OR v.modVehiculo LIKE ? OR CONCAT(c.nomConductor, ' ', c.apeConductor) LIKE ?)`;
+            query += ` AND (v.plaVehiculo LIKE ? OR v.marVehiculo LIKE ? OR v.modVehiculo LIKE ? OR CONCAT(u.nomUsuario, ' ', u.apeUsuario) LIKE ?)`;
             const searchParam = `%${search}%`;
             queryParams.push(searchParam, searchParam, searchParam, searchParam);
         }
@@ -92,7 +93,7 @@ const getVehiculos = async (req, res) => {
         }
 
         if (search) {
-            countQuery += ` AND (v.plaVehiculo LIKE ? OR v.marVehiculo LIKE ? OR v.modVehiculo LIKE ? OR CONCAT(c.nomConductor, ' ', c.apeConductor) LIKE ?)`;
+            countQuery += ` AND (v.plaVehiculo LIKE ? OR v.marVehiculo LIKE ? OR v.modVehiculo LIKE ? OR CONCAT(u.nomUsuario, ' ', u.apeUsuario) LIKE ?)`;
             const searchParam = `%${search}%`;
             countParams.push(searchParam, searchParam, searchParam, searchParam);
         }
@@ -124,13 +125,14 @@ const getVehiculoById = async (req, res) => {
             SELECT 
                 v.*,
                 c.idConductor,
-                c.nomConductor,
-                c.apeConductor,
-                c.numDocConductor,
-                c.telConductor,
+                u.nomUsuario as nomConductor,
+                u.apeUsuario as apeConductor,
+                u.numDocUsuario as numDocConductor,
+                u.telUsuario as telConductor,
                 e.nomEmpresa
             FROM Vehiculos v
             LEFT JOIN Conductores c ON v.idConductorAsignado = c.idConductor
+            LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario
             LEFT JOIN Empresas e ON v.idEmpresa = e.idEmpresa
             WHERE v.idVehiculo = ?
         `, [id]);
@@ -172,7 +174,7 @@ const crearVehiculo = async (req, res) => {
         fecVenSOAT,
         fecVenTec,
         estVehiculo = 'DISPONIBLE',
-        idEmpresa = 1,
+        idEmpresa = req.user?.idEmpresa || 1,
         idConductorAsignado = null
     } = req.body;
 
@@ -615,7 +617,7 @@ const getEstadisticasVehiculos = async (req, res) => {
                 SUM(CASE WHEN idConductorAsignado IS NULL THEN 1 ELSE 0 END) as sinConductorAsignado
             FROM Vehiculos
             WHERE idEmpresa = ?
-        `, [1]); // Por defecto empresa 1
+        `, [req.user?.idEmpresa || 1]); // Empresa del usuario autenticado o 1 por defecto
 
         res.json({ estadisticas: stats[0] });
 
@@ -641,10 +643,11 @@ const verificarVencimientosVehiculos = async (req, res) => {
                 v.fecVenTec,
                 DATEDIFF(v.fecVenSOAT, CURDATE()) as diasSOAT,
                 DATEDIFF(v.fecVenTec, CURDATE()) as diasTecnica,
-                c.nomConductor,
-                c.apeConductor
+                u.nomUsuario as nomConductor,
+                u.apeUsuario as apeConductor
             FROM Vehiculos v
             LEFT JOIN Conductores c ON v.idConductorAsignado = c.idConductor
+            LEFT JOIN Usuarios u ON c.idUsuario = u.idUsuario
             WHERE (
                 v.fecVenSOAT <= DATE_ADD(CURDATE(), INTERVAL ? DAY) OR
                 v.fecVenTec <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
@@ -669,7 +672,7 @@ const verificarVencimientosVehiculos = async (req, res) => {
 // Obtener lista simple de vehículos para selects
 const getVehiculosSelect = async (req, res) => {
     try {
-        const { idEmpresa = 1 } = req.query;
+        const { idEmpresa = req.user?.idEmpresa || 1 } = req.query;
 
         const [vehiculos] = await pool.query(
             `SELECT 

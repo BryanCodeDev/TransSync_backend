@@ -4,10 +4,10 @@ const bcrypt = require('bcryptjs');
 
 // LEER (GET /)
 const listarConductores = async (req, res) => {
-    try {
-        const idEmpresa = req.user.idEmpresa;
-        // Obtenemos los filtros desde los query params de la URL
-        const { estConductor, tipLicConductor, conVehiculo } = req.query;
+  try {
+    const idEmpresa = req.user?.idEmpresa || 1; // Fallback a empresa 1 si no hay usuario
+    // Obtenemos los filtros desde los query params de la URL
+    const { estConductor, tipLicConductor, conVehiculo } = req.query;
 
         let query = `
             SELECT 
@@ -155,8 +155,37 @@ const eliminarConductor = async (req, res) => {
     }
 };
 
-module.exports = { 
+const getConductoresDisponibles = async (req, res) => {
+  try {
+    const [conductores] = await pool.query(`
+      SELECT
+        c.idConductor,
+        u.nomUsuario,
+        u.apeUsuario,
+        c.tipLicConductor,
+        c.fecVenLicConductor
+      FROM Conductores c
+      JOIN Usuarios u ON c.idUsuario = u.idUsuario
+      WHERE c.estConductor = 'ACTIVO'
+      AND c.idConductor NOT IN (
+        SELECT DISTINCT idConductorAsignado
+        FROM Vehiculos
+        WHERE idConductorAsignado IS NOT NULL
+      )
+      ORDER BY u.nomUsuario ASC
+    `);
+
+    res.json(conductores);
+  } catch (error) {
+    console.error('Error al obtener conductores disponibles:', error);
+    res.status(500).json({ message: 'Error del servidor.' });
+  }
+};
+
+module.exports = {
   listarConductores,
   crearConductor,
   actualizarConductor,
-  eliminarConductor };
+  eliminarConductor,
+  getConductoresDisponibles
+};

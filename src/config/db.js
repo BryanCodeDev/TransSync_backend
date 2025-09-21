@@ -12,23 +12,23 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    
+
     // Configuraciones modernas válidas para MySQL2
     acquireTimeout: 60000,      // Tiempo máximo para obtener conexión
     idleTimeout: 600000,        // 10 minutos de timeout para conexiones inactivas
     enableKeepAlive: true,      // Mantener conexiones vivas
     keepAliveInitialDelay: 0,   // Iniciar keep-alive inmediatamente
-    
+
     // Configuraciones adicionales recomendadas
     charset: 'utf8mb4',         // Soporte para emojis y caracteres especiales
     timezone: 'Z',              // Usar timezone UTC
     dateStrings: false,         // Retornar fechas como objetos Date
     debug: false,               // Establecer en true para debugging SQL
     multipleStatements: false,  // Seguridad: prevenir múltiples declaraciones SQL
-    
+
     // Configuración de timeout de conexión (válida)
     connectTimeout: 20000,      // 20 segundos timeout de conexión
-    
+
     // REMOVIDAS las siguientes opciones que causan advertencias:
     // reconnect: true,         // Esta opción está deprecada
     // acquireTimeout: 60000,   // Duplicada - ya está arriba
@@ -39,15 +39,15 @@ const pool = mysql.createPool({
 async function testConnection() {
     try {
         const connection = await pool.getConnection();
-        
+
         // Test con una query simple (usar comillas invertidas para nombres de columnas)
         const [rows] = await connection.execute('SELECT 1 as test, NOW() as `current_time`');
-        
+
         console.log('✅ Conexión exitosa a MySQL');
         console.log(`📊 Base de datos: ${process.env.DB_DATABASE}`);
         console.log(`🌐 Host: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306}`);
         console.log(`⏰ Tiempo del servidor: ${rows[0].current_time}`);
-        
+
         connection.release();
         return true;
     } catch (error) {

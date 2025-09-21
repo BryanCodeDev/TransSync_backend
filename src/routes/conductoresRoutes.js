@@ -9,6 +9,7 @@ const allowRoles = require('../middleware/roleMiddleware');
 router.use(authMiddleware, allowRoles('SUPERADMIN', 'GESTOR'));
 
 router.get("/", conductoresController.listarConductores);
+router.get("/disponibles", conductoresController.getConductoresDisponibles);
 router.post("/", conductoresController.crearConductor);
 router.put("/:idConductor", conductoresController.actualizarConductor);
 router.delete("/:idConductor", conductoresController.eliminarConductor);
