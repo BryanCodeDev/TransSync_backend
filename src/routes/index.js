@@ -15,6 +15,7 @@ const viajesRoutes = require('./viajesRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
 const chatbotRoutes = require('./chatbotRoutes');
 const mapRoutes = require('./mapRoutes'); // Nueva ruta de mapas
+const realTimeRoutes = require('./realTimeRoutes'); // Rutas del RealTimeService
 
 // Ruta de verificación de salud
 router.get('/health', async (req, res) => {
@@ -50,6 +51,7 @@ router.use('/viajes', viajesRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/chatbot', chatbotRoutes);
 router.use('/map', mapRoutes); // Nueva ruta de mapas
+router.use('/realtime', realTimeRoutes); // Rutas del RealTimeService
 
 // Ruta para manejo de errores 404
 router.use((req, res) => {
@@ -69,7 +71,8 @@ router.use((req, res) => {
             '/api/viajes/*',
             '/api/dashboard/*',
             '/api/chatbot/*',
-            '/api/map/*' // Nueva ruta de mapas
+            '/api/map/*', // Nueva ruta de mapas
+            '/api/realtime/*' // Rutas del RealTimeService
         ]
     });
 });

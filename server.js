@@ -7,6 +7,7 @@ const path = require("path");
 require('dotenv').config();
 
 const routes = require("./src/routes");
+const RealTimeService = require("./src/utilidades/realTimeService");
 
 // Crear servidor HTTP y Express
 const app = express();
@@ -43,8 +44,12 @@ const websocketAuth = require('./src/middleware/websocketAuth');
 // Aplicar autenticación a conexiones WebSocket
 io.use(websocketAuth);
 
-// Hacer io disponible globalmente
+// Inicializar RealTimeService
+const realTimeService = new RealTimeService(server);
+
+// Hacer servicios disponibles globalmente
 global.io = io;
+global.realTimeService = realTimeService;
 
 // Importar y usar rutas WebSocket
 require('./src/routes/websocketRoutes')(io);
@@ -171,21 +176,36 @@ app.get('/favicon.ico', (req, res) => {
 
 // --- Health check endpoint ---
 app.get('/api/health', (req, res) => {
+    const realTimeStats = realTimeService.getConnectionStats();
+
     res.json({
         status: 'OK',
         message: 'TranSync Backend API está funcionando',
         timestamp: new Date().toISOString(),
         version: '2.0.0',
         database: 'Connected',
-        websocket: 'Enabled',
+        websocket: {
+            enabled: true,
+            connections: realTimeStats.totalConnections,
+            connectionsByEmpresa: realTimeStats.connectionsByEmpresa,
+            connectionsByRol: realTimeStats.connectionsByRol
+        },
+        realTimeService: {
+            status: 'Active',
+            clientCount: realTimeStats.totalConnections,
+            uptime: realTimeStats.uptime
+        },
         environment: process.env.NODE_ENV || 'development',
         features: [
             'REST API',
             'WebSocket Real-time',
+            'RealTimeService Notifications',
             'JWT Authentication',
             'Advanced ChatBot AI',
             'Intelligent Caching',
-            'Conversation Memory'
+            'Conversation Memory',
+            'Real-time Notifications',
+            'Connection Monitoring'
         ]
     });
 });
@@ -210,6 +230,11 @@ app.get('/', (req, res) => {
             websocket: {
                 stats: '/api/websocket/stats',
                 clients: '/api/websocket/clients'
+            },
+            realTimeService: {
+                stats: '/api/realtime/stats',
+                clients: '/api/realtime/clients',
+                notifications: '/api/realtime/notifications'
             }
         },
         websocket: {
@@ -219,8 +244,18 @@ app.get('/', (req, res) => {
                 'Real-time notifications',
                 'Live chat updates',
                 'Expiration alerts',
-                'Connection monitoring'
+                'Connection monitoring',
+                'RealTimeService integration',
+                'Advanced notification system'
             ]
+        },
+        realTimeService: {
+            status: 'Active',
+            endpoints: {
+                stats: '/api/realtime/stats',
+                clients: '/api/realtime/clients',
+                notifications: '/api/realtime/notifications'
+            }
         },
         cors: {
             enabled: true,
@@ -249,11 +284,15 @@ app.use((req, res) => {
             'GET /api/auth/profile',
             'GET /api/websocket/stats',
             'GET /api/websocket/clients',
+            'GET /api/realtime/stats',
+            'GET /api/realtime/clients',
+            'POST /api/realtime/notifications',
             'POST /api/chatbot/consulta'
         ],
         websocket: {
             url: `ws://localhost:${PORT}`,
-            auth: 'Requiere token JWT en handshake'
+            auth: 'Requiere token JWT en handshake',
+            realTimeService: 'Sistema de notificaciones avanzado habilitado'
         },
         suggestion: 'Verifica que la URL sea correcta y que incluya el prefijo /api'
     });
@@ -273,16 +312,18 @@ app.use((error, req, res, next) => {
     });
 });
 
-// --- Iniciar Servidor con WebSocket ---
+// --- Iniciar Servidor con WebSocket y RealTimeService ---
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
     console.log(`📡 API disponible en http://localhost:${PORT}/api`);
     console.log(`🔗 Health check en http://localhost:${PORT}/api/health`);
     console.log(`🔌 WebSocket disponible en ws://localhost:${PORT}`);
+    console.log(`⚡ RealTimeService: Sistema de notificaciones avanzado activo`);
     console.log(`📱 Para React Native emulador: http://10.0.2.2:${PORT}/api`);
     console.log(`🌐 CORS habilitado para múltiples orígenes`);
     console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📊 WebSocket: Habilitado con autenticación JWT`);
+    console.log(`🔔 RealTimeService: Conexiones activas: ${realTimeService.getClientCount()}`);
 });
 
 // Exportar para testing
