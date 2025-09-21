@@ -20,9 +20,8 @@ async function fixPasswords() {
     try {
         // Contraseñas por defecto
         const users = [
-            { email: 'transsync1@gmail.com', password: 'admin123' },
-            { email: 'admin@elrapido.com', password: 'admin123' },
-            { email: 'conductor@elrapido.com', password: 'conductor123' }
+            { email: 'admintransync@gmail.com', password: 'admin123' },
+            { email: 'adminrapidotolima@gmail.com', password: 'admin124' }
         ];
 
         for (const user of users) {
@@ -50,8 +49,10 @@ async function fixPasswords() {
         
         console.log('\n🎉 Proceso completado!');
         console.log('🚀 Ahora puedes hacer login con:');
-        console.log('   Email: transsync1@gmail.com');
+        console.log('   Email: admintransync@gmail.com');
         console.log('   Password: admin123');
+        console.log('   Email: adminrapidotolima@gmail.com');
+        console.log('   Password: admin124');
         
     } catch (error) {
         console.error('❌ Error:', error.message);

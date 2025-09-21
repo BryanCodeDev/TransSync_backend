@@ -1,75 +1,53 @@
-// src/controllers/authController.js - VERSIÓN CORREGIDA
+// src/controllers/authController.js 
 
 const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendEmail } = require("../utils/emailService");
 
+
+// REGISTRO DE USUARIO
 const register = async (req, res) => {
-    const { email, password } = req.body;
+    console.log("BODY RECIBIDO:", req.body);
+    const { nomUsuario, apeUsuario, numDocUsuario, telUsuario, email, password } = req.body;
     const idEmpresa = 1; // Empresa por defecto
 
-    // Validaciones básicas
-    if (!email || !password) {
-        return res
-            .status(400)
-            .json({ message: "Todos Los Campos Son Requeridos." });
+    if (!nomUsuario || !apeUsuario || !numDocUsuario || !telUsuario || !email || !password) {
+        return res.status(400).json({ msg: 'Todos los campos son obligatorios' });
     }
 
     const connection = await pool.getConnection();
-
     try {
         await connection.beginTransaction();
 
-        // Verificar si email ya existe
-        const [existingEmail] = await connection.query(
-            "SELECT idUsuario FROM Usuarios WHERE email = ?",
-            [email]
+        const [existingUser] = await connection.query(
+            "SELECT idUsuario FROM Usuarios WHERE email = ? OR numDocUsuario = ?",
+            [email, numDocUsuario]
         );
-        if (existingEmail.length > 0) {
+        if (existingUser.length > 0) {
             await connection.rollback();
-            return res
-                .status(409)
-                .json({ message: "El Correo Electrónico Ya Está Registrado." });
+            return res.status(409).json({ message: "El correo o documento ya está registrado." });
         }
 
-        // Buscar el ID del rol PENDIENTE
         const [roleResult] = await connection.query(
-            "SELECT idRol FROM Roles WHERE nomRol = 'PENDIENTE'",
-            []
+            "SELECT idRol FROM Roles WHERE nomRol = 'CONDUCTOR'"
         );
-        
         if (roleResult.length === 0) {
             await connection.rollback();
-            return res
-                .status(500)
-                .json({ message: "Error de configuración: Rol PENDIENTE no encontrado." });
+            return res.status(500).json({ message: "Rol CONDUCTOR no encontrado." });
         }
-        
+
         const idRol = roleResult[0].idRol;
-
-        // Verificar que existe la empresa
-        const [empresaResult] = await connection.query(
-            "SELECT idEmpresa FROM Empresas WHERE idEmpresa = ?",
-            [idEmpresa]
-        );
-        
-        if (empresaResult.length === 0) {
-            await connection.rollback();
-            return res
-                .status(500)
-                .json({ message: "Error de configuración: Empresa no encontrada." });
-        }
-
-        // Hashear la contraseña
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Insertar usuario con el rol PENDIENTE encontrado
         const [userResult] = await connection.query(
-            "INSERT INTO Usuarios (email, passwordHash, idRol, idEmpresa) VALUES (?, ?, ?, ?)",
-            [email, passwordHash, idRol, idEmpresa]
+            `INSERT INTO Usuarios 
+            (email, passwordHash, nomUsuario, apeUsuario, numDocUsuario, telUsuario, idRol, idEmpresa) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [email, passwordHash, nomUsuario, apeUsuario, numDocUsuario, telUsuario, idRol, idEmpresa]
         );
+
         const newUserId = userResult.insertId;
 
         // Generar token de verificación y construir URL
@@ -174,133 +152,73 @@ const register = async (req, res) => {
             .status(201)
             .json({
                 message:
-                    "Usuario Registrado Con Rol Pendiente. Por Favor, Verifica Tu Correo Electronico Para Completar El Registro.",
+                    "Usuario registrado. Verifica tu correo electronico para activar la cuenta.",
             });
     } catch (error) {
         await connection.rollback();
-        console.error("Error En El Registro:", error);
+        console.error("Error en el registro:", error);
         res
             .status(500)
-            .json({ message: "Error En El Servidor Al Registrar El usuario." });
+            .json({ message: "Error al registrar usuario." });
     } finally {
         connection.release();
     }
 };
 
-// =====================================================
-// FUNCIÓN DE LOGIN CORREGIDA PARA SUPERADMIN
-// =====================================================
+// LOGIN
 const login = async (req, res) => {
     const { email, password } = req.body;
 
-    console.log('=== DEBUG LOGIN SUPERADMIN ===');
-    console.log('Email recibido:', email);
-    console.log('Password recibido:', password);
-
     if (!email || !password) {
-        return res
-            .status(400)
-            .json({ message: "El Correo Y La Contraseña Son Requeridos." });
+        return res.status(400).json({ message: "Correo y contraseña requeridos." });
     }
 
     try {
-        // *** CONSULTA CORREGIDA PARA INCLUIR EMPRESA ***
         const query = `
-        SELECT 
-            u.idUsuario, 
-            u.email, 
-            u.passwordHash, 
-            u.estActivo,
-            u.idEmpresa,
-            r.nomRol as rol,
-            e.nomEmpresa,
-            a.nomAdministrador, 
-            a.apeAdministrador,
-            c.nomConductor, 
-            c.apeConductor
-        FROM Usuarios u
-        JOIN Roles r ON u.idRol = r.idRol
-        JOIN Empresas e ON u.idEmpresa = e.idEmpresa
-        LEFT JOIN Administradores a ON u.idUsuario = a.idUsuario
-        LEFT JOIN Conductores c ON u.idUsuario = c.idUsuario
-        WHERE u.email = ?
+            SELECT u.*, r.nomRol as rol, e.nomEmpresa
+            FROM Usuarios u
+            JOIN Roles r ON u.idRol = r.idRol
+            JOIN Empresas e ON u.idEmpresa = e.idEmpresa
+            WHERE u.email = ?
         `;
 
         const [rows] = await pool.query(query, [email]);
         const user = rows[0];
 
-        console.log("Usuarios encontrados:", rows.length);
-        console.log("Usuario encontrado:", user ? {
-            id: user.idUsuario,
-            email: user.email,
-            rol: user.rol,
-            activo: user.estActivo,
-            empresa: user.nomEmpresa,
-            idEmpresa: user.idEmpresa,
-            tieneAdmin: !!user.nomAdministrador,
-            tieneConductor: !!user.nomConductor
-        } : null);
-
         if (!user) {
-            console.log('Usuario no encontrado en la base de datos');
-            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
+            return res.status(401).json({ message: "Credenciales incorrectas." });
         }
 
         if (!user.estActivo) {
-            console.log('Usuario inactivo:', user.estActivo);
-            return res.status(403).json({ message: "Su cuenta está desactivada. Contacte al administrador." });
+            return res.status(403).json({ message: "Cuenta desactivada. Verifica tu correo o contacta soporte." });
         }
 
-        // *** VERIFICACIÓN DE CONTRASEÑA CORREGIDA ***
-        console.log('Verificando contraseña...');
-        console.log('Hash almacenado:', user.passwordHash);
-        console.log('Contraseña a verificar:', password);
-        
         const isMatch = await bcrypt.compare(password, user.passwordHash);
-        console.log('Contraseña válida:', isMatch);
-
         if (!isMatch) {
-            console.log('Contraseña incorrecta');
-            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
+            return res.status(401).json({ message: "Credenciales incorrectas." });
         }
 
-        // *** LÓGICA CORREGIDA PARA NOMBRE SEGÚN EL ROL ***
-        let nombre = '';
-        let apellido = '';
+        // Lógica para obtener nombre y apellido según rol
+        let nombre = "";
+        let apellido = "";
 
         if (user.rol === "SUPERADMIN") {
-            // Para SUPERADMIN, buscar datos en la tabla Administradores
-            if (user.nomAdministrador && user.apeAdministrador) {
-                nombre = user.nomAdministrador;
-                apellido = user.apeAdministrador;
-            } else {
-                // Si no tiene perfil de administrador, usar valores por defecto
-                nombre = "Super";
-                apellido = "Admin";
-            }
-        } else if (user.rol === "ADMINISTRADOR") {
-            nombre = user.nomAdministrador || "Admin";
+            nombre = user.nomAdministrador || "Super";
+            apellido = user.apeAdministrador || "Admin";
+        } else if (user.rol === "GESTOR") {
+            nombre = user.nomAdministrador || "Gestor";
             apellido = user.apeAdministrador || "Usuario";
         } else if (user.rol === "CONDUCTOR") {
             nombre = user.nomConductor || "Conductor";
             apellido = user.apeConductor || "Usuario";
         } else {
-            // PENDIENTE u otros roles
-            nombre = "Usuario";
-            apellido = "Pendiente";
+            nombre = user.nomUsuario || "Usuario";
+            apellido = user.apeUsuario || "Pendiente";
         }
 
-        console.log('Datos finales del usuario:', {
-            nombre,
-            apellido,
-            rol: user.rol,
-            empresa: user.nomEmpresa
-        });
-
-        // *** TOKEN MEJORADO CON MÁS INFORMACIÓN ***
         const token = jwt.sign(
-            { 
-                id: user.idUsuario, 
+            {
+                id: user.idUsuario,
                 role: user.rol,
                 idEmpresa: user.idEmpresa,
                 empresa: user.nomEmpresa
@@ -308,8 +226,6 @@ const login = async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: "8h" }
         );
-
-        console.log('Login exitoso para:', email);
 
         res.json({
             success: true,
@@ -321,72 +237,59 @@ const login = async (req, res) => {
                 role: user.rol,
                 empresa: user.nomEmpresa,
                 idEmpresa: user.idEmpresa
-            },
+            }
         });
+
     } catch (error) {
-        console.error("Error En El login:", error);
-        res.status(500).json({ message: "Error En El Servidor." });
+        console.error("Error en login:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
     }
 };
 
+// VERIFICACION DE LA CUENTA.
 const verifyAccount = async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
-        return res.status(400).json({ message: 'Token De Verificación No Proporcionado.' });
+        return res.status(400).json({ message: "Token de verificación no proporcionado." });
     }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.id;
 
-        // Activar la cuenta
         const [result] = await pool.query(
             'UPDATE Usuarios SET estActivo = 1 WHERE idUsuario = ?',
             [userId]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Usuario No Encontrado O Ya Verificado.' });
+            return res.status(404).json({ message: 'Usuario no encontrado o ya verificado.' });
         }
 
-        res.status(200).json({ message: 'Cuenta Verificada Exitosamente. Ya Puedes Iniciar sesión :) .' });
-
+        res.status(200).json({ message: 'Cuenta verificada exitosamente.' });
     } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-            console.error('Error Al Verificar La Cuenta:', error);
-            return res.status(400).json({ message: `Error Al Verificar La Cuenta: ${error.message}` });
-        } else {
-            console.error(`Token inválido: ${error.message}`);
-        }
-        return res.status(400).json({ message: 'Token inválido o expirado.' });
+        console.error("Error al verificar cuenta:", error);
+        return res.status(400).json({ message: "Token inválido o expirado." });
     }
 };
-
+// OLVIDE MI CONTRASEÑA
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
-
     if (!email) {
-        return res.status(400).json({ message: "El correo electrónico es requerido." });
+        return res.status(400).json({ message: "Correo electrónico requerido." });
     }
 
     try {
-        // Verificar si el email existe
-        const [rows] = await pool.query(
-            "SELECT idUsuario FROM Usuarios WHERE email = ?",
-            [email]
-        );
+        const [rows] = await pool.query("SELECT idUsuario FROM Usuarios WHERE email = ?", [email]);
 
         if (rows.length === 0) {
-            return res.status(404).json({ message: "El correo no está registrado." });
+            return res.status(404).json({ message: "Correo no registrado." });
         }
 
         const userId = rows[0].idUsuario;
 
-        // Generar token válido por 15 minutos
-        const resetToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-            expiresIn: "15m",
-        });
+        const resetToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "15m" });
 
         const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
 
@@ -491,6 +394,7 @@ const forgotPassword = async (req, res) => {
     }
 };
 
+// RESET CONTRASEÑA
 const resetPassword = async (req, res) => {
     const { token } = req.query;
     const { newPassword } = req.body;
@@ -501,21 +405,17 @@ const resetPassword = async (req, res) => {
 
     if (!esPasswordSegura(newPassword)) {
         return res.status(400).json({
-            message:
-                "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo."
+            message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo."
         });
     }
 
     try {
-        // Verificar y decodificar el token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.id;
 
-        // Hashear nueva contraseña
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-        // Actualizar la contraseña en la BD
         const [result] = await pool.query(
             "UPDATE Usuarios SET passwordHash = ? WHERE idUsuario = ?",
             [hashedPassword, userId]
@@ -531,7 +431,7 @@ const resetPassword = async (req, res) => {
         res.status(400).json({ message: "Token inválido o expirado." });
     }
 };
-
+// VALIDACION DE CONTRASEÑA SEGURA
 function esPasswordSegura(password) {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     return regex.test(password);

@@ -189,118 +189,51 @@ const getChartsData = async (req, res) => {
 const getActiveAlerts = async (req, res) => {
     try {
         const idEmpresa = req.user.idEmpresa;
-        
-        // Consulta directa sin usar la vista problemática
-        const [alerts] = await pool.query(`
-            SELECT 
-                'LICENCIA' as tipoDocumento,
-                CONCAT(c.nomConductor, ' ', c.apeConductor) as titular,
-                c.fecVenLicConductor as fechaVencimiento,
-                DATEDIFF(c.fecVenLicConductor, CURDATE()) as diasParaVencer,
-                CASE 
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN 'VENCIDO'
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 30 THEN 'CRITICO'
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60 THEN 'ADVERTENCIA'
-                    ELSE 'NORMAL'
-                END as estado,
-                CASE 
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN 'critical'
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 30 THEN 'critical'
-                    WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60 THEN 'warning'
-                    ELSE 'info'
-                END as severity,
-                CONCAT(
-                    'Licencia de conducción de ', c.nomConductor, ' ', c.apeConductor,
-                    CASE 
-                        WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN ' está vencida'
-                        WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) = 0 THEN ' vence hoy'
-                        ELSE CONCAT(' vence en ', DATEDIFF(c.fecVenLicConductor, CURDATE()), ' días')
-                    END
-                ) as title,
-                DATE_FORMAT(c.fecVenLicConductor, '%d/%m/%Y') as time
-            FROM Conductores c
-            WHERE c.idEmpresa = ?
-            AND DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60
-            
-            UNION ALL
-            
-            SELECT 
-                'SOAT' as tipoDocumento,
-                CONCAT(v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo) as titular,
-                v.fecVenSOAT as fechaVencimiento,
-                DATEDIFF(v.fecVenSOAT, CURDATE()) as diasParaVencer,
-                CASE 
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) < 0 THEN 'VENCIDO'
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) <= 30 THEN 'CRITICO'
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) <= 60 THEN 'ADVERTENCIA'
-                    ELSE 'NORMAL'
-                END as estado,
-                CASE 
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) < 0 THEN 'critical'
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) <= 30 THEN 'critical'
-                    WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) <= 60 THEN 'warning'
-                    ELSE 'info'
-                END as severity,
-                CONCAT(
-                    'SOAT de ', v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo,
-                    CASE 
-                        WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) < 0 THEN ' está vencido'
-                        WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) = 0 THEN ' vence hoy'
-                        ELSE CONCAT(' vence en ', DATEDIFF(v.fecVenSOAT, CURDATE()), ' días')
-                    END
-                ) as title,
-                DATE_FORMAT(v.fecVenSOAT, '%d/%m/%Y') as time
-            FROM Vehiculos v
-            WHERE v.idEmpresa = ?
-            AND DATEDIFF(v.fecVenSOAT, CURDATE()) <= 60
-            
-            UNION ALL
-            
-            SELECT 
-                'TECNOMECANICA' as tipoDocumento,
-                CONCAT(v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo) as titular,
-                v.fecVenTec as fechaVencimiento,
-                DATEDIFF(v.fecVenTec, CURDATE()) as diasParaVencer,
-                CASE 
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) < 0 THEN 'VENCIDO'
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) <= 30 THEN 'CRITICO'
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) <= 60 THEN 'ADVERTENCIA'
-                    ELSE 'NORMAL'
-                END as estado,
-                CASE 
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) < 0 THEN 'critical'
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) <= 30 THEN 'critical'
-                    WHEN DATEDIFF(v.fecVenTec, CURDATE()) <= 60 THEN 'warning'
-                    ELSE 'info'
-                END as severity,
-                CONCAT(
-                    'Revisión tecnomecánica de ', v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo,
-                    CASE 
-                        WHEN DATEDIFF(v.fecVenTec, CURDATE()) < 0 THEN ' está vencida'
-                        WHEN DATEDIFF(v.fecVenTec, CURDATE()) = 0 THEN ' vence hoy'
-                        ELSE CONCAT(' vence en ', DATEDIFF(v.fecVenTec, CURDATE()), ' días')
-                    END
-                ) as title,
-                DATE_FORMAT(v.fecVenTec, '%d/%m/%Y') as time
-            FROM Vehiculos v
-            WHERE v.idEmpresa = ?
-            AND DATEDIFF(v.fecVenTec, CURDATE()) <= 60
-            
-            ORDER BY diasParaVencer ASC
-            LIMIT 10
-        `, [idEmpresa, idEmpresa, idEmpresa]);
 
-        res.json({
-            status: 'success',
-            data: alerts || []
-        });
+        // Consulta directa a la base de datos sin usar la vista
+        const [alerts] = await pool.query(`
+      SELECT 
+        'LICENCIA' AS tipoDocumento,
+        CONCAT(u.nomUsuario, ' ', u.apeUsuario) AS titular,
+        c.fecVenLicConductor AS fechaVencimiento,
+        DATEDIFF(c.fecVenLicConductor, CURDATE()) AS diasParaVencer,
+
+        CASE 
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN 'VENCIDO'
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 30 THEN 'CRITICO'
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60 THEN 'ADVERTENCIA'
+          ELSE 'NORMAL'
+        END AS estado,
+
+        CASE 
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN 'critical'
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 30 THEN 'critical'
+          WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60 THEN 'warning'
+          ELSE 'info'
+        END AS severity,
+
+        CONCAT(
+          'Licencia de conducción de ', u.nomUsuario, ' ', u.apeUsuario,
+          CASE 
+            WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) < 0 THEN ' está vencida'
+            WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) = 0 THEN ' vence hoy'
+            ELSE CONCAT(' vence en ', DATEDIFF(c.fecVenLicConductor, CURDATE()), ' días')
+          END
+        ) AS title,
+
+        DATE_FORMAT(c.fecVenLicConductor, '%d/%m/%Y') AS time
+
+      FROM Conductores c
+      JOIN Usuarios u ON c.idUsuario = u.idUsuario
+      WHERE c.idEmpresa = ?
+        AND DATEDIFF(c.fecVenLicConductor, CURDATE()) <= 60
+    `, [idEmpresa]);
+
+        res.json(alerts);
+
     } catch (error) {
-        console.error('Error al obtener alertas:', error);
-        res.status(500).json({ 
-            status: 'error',
-            message: 'Error del servidor al obtener alertas',
-            details: error.message
-        });
+        console.error("Error al obtener alertas activas:", error);
+        res.status(500).json({ message: "Error al obtener alertas activas" });
     }
 };
 

@@ -1,236 +1,162 @@
 // src/controllers/conductoresController.js
-const pool = require('../config/db');
+const pool = require("../config/db");
+const bcrypt = require('bcryptjs');
 
-// Obtener todos los conductores
-const getConductores = async (req, res) => {
-  try {
-    const [rows] = await pool.query(`SELECT * FROM Conductores`);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener conductores:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
+// LEER (GET /)
+const listarConductores = async (req, res) => {
+    try {
+        const idEmpresa = req.user.idEmpresa;
+        // Obtenemos los filtros desde los query params de la URL
+        const { estConductor, tipLicConductor, conVehiculo } = req.query;
 
-// Obtener conductor por ID
-const getConductorById = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [rows] = await pool.query(
-      `SELECT * FROM Conductores WHERE idConductor = ?`,
-      [id]
-    );
+        let query = `
+            SELECT 
+                c.idConductor, c.tipLicConductor, c.fecVenLicConductor, c.estConductor,
+                u.idUsuario, u.nomUsuario, u.apeUsuario, u.email,
+                u.numDocUsuario, u.telUsuario, u.estActivo,
+                v.plaVehiculo
+            FROM Conductores c
+            JOIN Usuarios u ON c.idUsuario = u.idUsuario
+            LEFT JOIN Vehiculos v ON c.idConductor = v.idConductorAsignado
+            WHERE c.idEmpresa = ?
+        `;
+        
+        const params = [idEmpresa];
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
+        // Construimos la consulta dinámicamente si llegan filtros
+        if (estConductor) {
+            query += ` AND c.estConductor = ?`;
+            params.push(estConductor);
+        }
+        if (tipLicConductor) {
+            query += ` AND c.tipLicConductor = ?`;
+            params.push(tipLicConductor);
+        }
+        if (conVehiculo === 'true') {
+            query += ` AND v.plaVehiculo IS NOT NULL`;
+        } else if (conVehiculo === 'false') {
+            query += ` AND v.plaVehiculo IS NULL`;
+        }
+        
+        query += ` ORDER BY u.nomUsuario ASC;`;
+
+        const [conductores] = await pool.query(query, params);
+        res.json(conductores);
+
+    } catch (error) {
+        console.error("Error al listar conductores:", error);
+        res.status(500).json({ message: "Error del servidor." });
     }
-
-    res.json(rows[0]);
-  } catch (error) {
-    console.error('Error al obtener conductor:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
 };
 
-// Crear nuevo conductor
+// CREAR (POST /)
 const crearConductor = async (req, res) => {
-  const { nomConductor, apeConductor, licencia, telefono, idEmpresa } = req.body;
-  try {
-    const [result] = await pool.query(
-      `INSERT INTO Conductores (nomConductor, apeConductor, licencia, telefono, idEmpresa) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [nomConductor, apeConductor, licencia, telefono, idEmpresa]
-    );
+    const { nomUsuario, apeUsuario, email, numDocUsuario, telUsuario, tipLicConductor, fecVenLicConductor } = req.body;
+    const idEmpresa = req.user.idEmpresa;
+    const connection = await pool.getConnection();
 
-    res.status(201).json({
-      message: 'Conductor creado correctamente.',
-      idConductor: result.insertId
-    });
-  } catch (error) {
-    console.error('Error al crear conductor:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
+    try {
+        await connection.beginTransaction();
+        const [rol] = await connection.query("SELECT idRol FROM Roles WHERE nomRol = 'CONDUCTOR'");
+        const passwordHash = await bcrypt.hash('Password123!', 10); // Contraseña por defecto
+
+        const [userResult] = await connection.query(
+            `INSERT INTO Usuarios (nomUsuario, apeUsuario, email, numDocUsuario, telUsuario, passwordHash, idRol, idEmpresa, estActivo)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+            [nomUsuario, apeUsuario, email, numDocUsuario, telUsuario, passwordHash, rol[0].idRol, idEmpresa]
+        );
+        const idUsuario = userResult.insertId;
+
+        const [driverResult] = await connection.query(
+            `INSERT INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, idEmpresa, estConductor)
+             VALUES (?, ?, ?, ?, 'ACTIVO')`,
+            [idUsuario, tipLicConductor, fecVenLicConductor, idEmpresa]
+        );
+        
+        await connection.commit();
+
+        // Notificar vía WebSocket después de crear el conductor
+        if (global.wsController) {
+            await global.wsController.notifyNewConductor({
+                idConductor: driverResult.insertId,
+                nomConductor: nomUsuario,
+                apeConductor: apeUsuario,
+                idEmpresa: idEmpresa,
+                tipLicConductor: tipLicConductor,
+                fecVenLicConductor: fecVenLicConductor,
+                estConductor: 'ACTIVO'
+            });
+        }
+
+        res.status(201).json({ message: "Conductor creado exitosamente." });
+    } catch (error) {
+        await connection.rollback();
+        if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: "El correo o documento ya está registrado." });
+        res.status(500).json({ message: "Error al crear conductor." });
+    } finally {
+        connection.release();
+    }
 };
 
-// Actualizar conductor
+// ACTUALIZAR (PUT /:idConductor)
 const actualizarConductor = async (req, res) => {
-  const { id } = req.params;
-  const { nomConductor, apeConductor, licencia, telefono } = req.body;
-  try {
-    const [result] = await pool.query(
-      `UPDATE Conductores 
-       SET nomConductor = ?, apeConductor = ?, licencia = ?, telefono = ?
-       WHERE idConductor = ?`,
-      [nomConductor, apeConductor, licencia, telefono, id]
-    );
+    const { idConductor } = req.params;
+    const { nomUsuario, apeUsuario, email, numDocUsuario, telUsuario, tipLicConductor, fecVenLicConductor, estConductor } = req.body;
+    const connection = await pool.getConnection();
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
+    try {
+        await connection.beginTransaction();
+        const [driver] = await connection.query("SELECT idUsuario FROM Conductores WHERE idConductor = ?", [idConductor]);
+        if (driver.length === 0) throw new Error("Conductor no encontrado");
+        
+        await connection.query(
+            `UPDATE Usuarios SET nomUsuario = ?, apeUsuario = ?, email = ?, numDocUsuario = ?, telUsuario = ? 
+             WHERE idUsuario = ?`,
+            [nomUsuario, apeUsuario, email, numDocUsuario, telUsuario, driver[0].idUsuario]
+        );
+
+        await connection.query(
+            `UPDATE Conductores SET tipLicConductor = ?, fecVenLicConductor = ?, estConductor = ?
+             WHERE idConductor = ?`,
+            [tipLicConductor, fecVenLicConductor, estConductor, idConductor]
+        );
+
+        await connection.commit();
+        res.json({ message: "Conductor actualizado." });
+    } catch (error) {
+        await connection.rollback();
+        if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: "El correo o documento ya pertenece a otro." });
+        res.status(500).json({ message: "Error al actualizar conductor." });
+    } finally {
+        connection.release();
     }
-
-    res.json({ message: 'Conductor actualizado correctamente.' });
-  } catch (error) {
-    console.error('Error al actualizar conductor:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
 };
 
-// Eliminar conductor
+// ELIMINAR (DELETE /:idConductor)
 const eliminarConductor = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [result] = await pool.query(
-      `DELETE FROM Conductores WHERE idConductor = ?`,
-      [id]
-    );
+    const { idConductor } = req.params;
+    const connection = await pool.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+        const [driver] = await connection.query("SELECT idUsuario FROM Conductores WHERE idConductor = ?", [idConductor]);
+        if (driver.length === 0) throw new Error("Conductor no encontrado");
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
+        await connection.query("DELETE FROM Conductores WHERE idConductor = ?", [idConductor]);
+        await connection.query("DELETE FROM Usuarios WHERE idUsuario = ?", [driver[0].idUsuario]);
+        
+        await connection.commit();
+        res.json({ message: "Conductor eliminado." });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ message: "Error al eliminar conductor." });
+    } finally {
+        connection.release();
     }
-
-    res.json({ message: 'Conductor eliminado correctamente.' });
-  } catch (error) {
-    console.error('Error al eliminar conductor:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
 };
 
-// Cambiar estado del conductor (activo/inactivo)
-const cambiarEstadoConductor = async (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
-  try {
-    const [result] = await pool.query(
-      `UPDATE Conductores SET estado = ? WHERE idConductor = ?`,
-      [estado, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
-    }
-
-    res.json({ message: 'Estado del conductor actualizado correctamente.' });
-  } catch (error) {
-    console.error('Error al cambiar estado del conductor:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// Asignar vehículo a conductor
-const asignarVehiculoConductor = async (req, res) => {
-  const { id } = req.params;
-  const { idVehiculo } = req.body;
-  try {
-    const [result] = await pool.query(
-      `UPDATE Conductores SET idVehiculo = ? WHERE idConductor = ?`,
-      [idVehiculo, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
-    }
-
-    res.json({ message: 'Vehículo asignado correctamente.' });
-  } catch (error) {
-    console.error('Error al asignar vehículo:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// Desasignar vehículo de conductor
-const desasignarVehiculoConductor = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [result] = await pool.query(
-      `UPDATE Conductores SET idVehiculo = NULL WHERE idConductor = ?`,
-      [id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Conductor no encontrado.' });
-    }
-
-    res.json({ message: 'Vehículo desasignado correctamente.' });
-  } catch (error) {
-    console.error('Error al desasignar vehículo:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// Obtener conductores para SELECT
-const getConductoresSelect = async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT 
-        idConductor, 
-        CONCAT(nomConductor, ' ', apeConductor) AS nombreCompleto
-      FROM Conductores
-      ORDER BY nomConductor, apeConductor
-    `);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener conductores para select:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// ==================== NUEVAS FUNCIONES ====================
-
-// Obtener conductores disponibles (ejemplo: sin vehículo asignado)
-const getConductoresDisponibles = async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT * FROM Conductores WHERE idVehiculo IS NULL
-    `);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener conductores disponibles:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// Obtener estadísticas de conductores (ejemplo: activos e inactivos)
-const getEstadisticasConductores = async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT estado, COUNT(*) AS total
-      FROM Conductores
-      GROUP BY estado
-    `);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener estadísticas de conductores:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// Verificar vencimiento de licencias (ejemplo: fecha anterior a hoy)
-const verificarVencimientoLicencias = async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT * FROM Conductores 
-      WHERE licencia < CURDATE()
-    `);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al verificar licencias:', error);
-    res.status(500).json({ message: 'Error del servidor.' });
-  }
-};
-
-// ==================== EXPORTS ====================
-
-module.exports = {
-  getConductores,
-  getConductorById,
+module.exports = { 
+  listarConductores,
   crearConductor,
   actualizarConductor,
-  eliminarConductor,
-  cambiarEstadoConductor,
-  asignarVehiculoConductor,
-  desasignarVehiculoConductor,
-  getConductoresSelect,
-  getConductoresDisponibles,
-  getEstadisticasConductores,
-  verificarVencimientoLicencias
-};
+  eliminarConductor };

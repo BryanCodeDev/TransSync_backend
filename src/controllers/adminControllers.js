@@ -1,174 +1,136 @@
 // src/controllers/adminControllers.js
 
-const pool = require('../config/db');
-const asignarRol = async (req, res) => {
-    const {
-        idUsuario,
-        nuevoRol,
-        nomAdministrador,
-        apeAdministrador,
-        numDocAdministrador,
-        idEmpresa
-    } = req.body;
+const pool = require("../config/db");
 
-    if (!idUsuario || !nuevoRol) {
-        return res.status(400).json({ message: "idUsuario y nuevoRol son requeridos." });
+const listarConductoresYPendientes = async (req, res) => {
+    try {
+        const idEmpresa = 1; // O obténlo del token si es necesario: req.user.idEmpresa;
+
+        // CAMBIO: La consulta ahora busca roles 'CONDUCTOR' y 'PENDIENTE'
+        const query = `
+        SELECT 
+            u.idUsuario, 
+            u.email, 
+            u.estActivo,
+            u.nomUsuario,      -- CAMBIO: Seleccionamos los campos genéricos
+            u.apeUsuario,      -- de la tabla Usuarios
+            u.numDocUsuario,
+            u.telUsuario,
+            r.nomRol AS rol
+        FROM Usuarios u
+        JOIN Roles r ON u.idRol = r.idRol
+        -- CAMBIO: Se eliminó el JOIN con la tabla inexistente 'Administradores'
+        WHERE 
+            r.nomRol IN ('CONDUCTOR', 'GESTOR') 
+            AND u.idEmpresa = ?
+            ORDER BY u.fecCreUsuario DESC
+    `;
+
+        const [usuarios] = await pool.query(query, [idEmpresa]);
+
+        res.json(usuarios);
+    } catch (error) {
+        console.error("Error al listar usuarios (conductores/pendientes):", error);
+        res.status(500).json({ message: "Error interno del servidor." });
     }
+};
+
+
+const eliminarUsuario = async (req, res) => {
+    const { idUsuario } = req.params;
+    const connection = await pool.getConnection(); // Usamos una conexión para manejar la transacción
 
     try {
-        // Obtener el ID del nuevo rol
-        const [roles] = await pool.query("SELECT idRol FROM Roles WHERE nomRol = ?", [nuevoRol]);
-        if (roles.length === 0) {
-            return res.status(404).json({ message: "Rol no encontrado." });
-        }
-        const idRol = roles[0].idRol;
+        await connection.beginTransaction(); // ¡Iniciamos una transacción!
 
-        // Actualizar el rol del usuario
-        const [updateResult] = await pool.query(
-            "UPDATE Usuarios SET idRol = ? WHERE idUsuario = ?",
-            [idRol, idUsuario]
+        // 1. Averiguar el rol del usuario para saber de qué tabla de perfil borrarlo
+        const [userRows] = await connection.query(
+            `SELECT r.nomRol FROM Usuarios u 
+             JOIN Roles r ON u.idRol = r.idRol 
+             WHERE u.idUsuario = ?`,
+            [idUsuario]
         );
-        if (updateResult.affectedRows === 0) {
+
+        if (userRows.length === 0) {
+            await connection.rollback();
             return res.status(404).json({ message: "Usuario no encontrado." });
         }
+        
+        const rol = userRows[0].nomRol;
 
-        // Si es ADMINISTRADOR, insertar en la tabla de Administradores
-        if (nuevoRol === "ADMINISTRADOR") {
-            // Validar datos necesarios
-            if (!nomAdministrador || !apeAdministrador || !numDocAdministrador || !idEmpresa) {
-                return res.status(400).json({ message: "Datos del administrador incompletos." });
-            }
-
-            // Validar que no exista un administrador con ese documento en la empresa
-            const [existingAdmin] = await pool.query(
-                "SELECT * FROM Administradores WHERE idEmpresa = ? AND numDocAdministrador = ?",
-                [idEmpresa, numDocAdministrador]
-            );
-            if (existingAdmin.length > 0) {
-                return res.status(409).json({ message: "Ya existe un administrador con ese número de documento en la empresa." });
-            }
-
-            // Insertar el perfil en Administradores
-            await pool.query(
-                "INSERT INTO Administradores (idUsuario, nomAdministrador, apeAdministrador, numDocAdministrador, idEmpresa) VALUES (?, ?, ?, ?, ?)",
-                [idUsuario, nomAdministrador, apeAdministrador, numDocAdministrador, idEmpresa]
-            );
+        // 2. Eliminar el perfil secundario según el rol
+        if (rol === 'GESTOR') {
+            await connection.query("DELETE FROM Gestores WHERE idUsuario = ?", [idUsuario]);
+        } else if (rol === 'CONDUCTOR') {
+            await connection.query("DELETE FROM Conductores WHERE idUsuario = ?", [idUsuario]);
         }
+        // Si hay más roles con tablas de perfil en el futuro, se añaden aquí
 
-        res.status(200).json({ message: "Rol asignado correctamente." });
-    } catch (error) {
-        console.error("Error al asignar rol:", error);
-        res.status(500).json({ message: "Error del servidor." });
-    }
-};
-
-const listarAdministradores = async (req, res) => {
-    try {
-        const [result] = await pool.query(`
-            SELECT 
-                u.idUsuario, u.email, u.estActivo,
-                r.nomRol AS rol,
-                a.nomAdministrador, a.apeAdministrador, a.numDocAdministrador, a.idEmpresa
-            FROM Usuarios u
-            JOIN Roles r ON u.idRol = r.idRol
-            LEFT JOIN Administradores a ON u.idUsuario = a.idUsuario
-            WHERE r.nomRol IN ('ADMINISTRADOR', 'PENDIENTE')
-        `);
-
-        res.json({ administradores: result });
-    } catch (error) {
-        console.error("Error al listar administradores:", error);
-        res.status(500).json({ message: "Error del servidor al obtener administradores." });
-    }
-};
-
-const editarAdministrador = async (req, res) => {
-    const { idUsuario } = req.params;
-    const { nomAdministrador, apeAdministrador, numDocAdministrador } = req.body;
-
-    if (!nomAdministrador || !apeAdministrador || !numDocAdministrador) {
-        return res.status(400).json({ message: "Todos los campos son requeridos." });
-    }
-
-    try {
-        // Verificar si existe el administrador
-        const [adminExiste] = await pool.query(
-            "SELECT * FROM Administradores WHERE idUsuario = ?",
-            [idUsuario]
-        );
-
-        if (adminExiste.length === 0) {
-            return res.status(404).json({ message: "Administrador no encontrado." });
-        }
-
-        const idEmpresa = adminExiste[0].idEmpresa;
-
-        // Validar que no haya otro admin con ese mismo documento en la misma empresa
-        const [docDuplicado] = await pool.query(
-            "SELECT * FROM Administradores WHERE idEmpresa = ? AND numDocAdministrador = ? AND idUsuario != ?",
-            [idEmpresa, numDocAdministrador, idUsuario]
-        );
-
-        if (docDuplicado.length > 0) {
-            return res.status(409).json({ message: "Ya existe un administrador con ese documento en esta empresa." });
-        }
-
-        // Actualizar
-        await pool.query(
-            `UPDATE Administradores 
-       SET nomAdministrador = ?, apeAdministrador = ?, numDocAdministrador = ?
-       WHERE idUsuario = ?`,
-            [nomAdministrador, apeAdministrador, numDocAdministrador, idUsuario]
-        );
-
-        res.json({ message: "Información del administrador actualizada correctamente." });
-
-    } catch (error) {
-        console.error("Error al editar administrador:", error);
-        res.status(500).json({ message: "Error del servidor." });
-    }
-};
-
-
-const eliminarAdministrador = async (req, res) => {
-    const { idUsuario } = req.params;
-
-    if (!idUsuario) {
-        return res.status(400).json({ message: "idUsuario es requerido." });
-    }
-
-    try {
-        // Verificar si existe el administrador
-        const [adminRows] = await pool.query(
-            "SELECT * FROM Administradores WHERE idUsuario = ?",
-            [idUsuario]
-        );
-
-        if (adminRows.length === 0) {
-            return res.status(404).json({ message: "Administrador no encontrado." });
-        }
-
-        // Eliminar el usuario (esto eliminará en cascada el perfil de Administrador)
-        const [result] = await pool.query(
+        // 3. Ahora que los perfiles secundarios fueron eliminados, borrar el usuario principal
+        const [deleteResult] = await connection.query(
             "DELETE FROM Usuarios WHERE idUsuario = ?",
             [idUsuario]
+        );
+        
+        if (deleteResult.affectedRows === 0) {
+            // Esto no debería pasar si el paso 1 tuvo éxito, pero es una buena salvaguarda
+            throw new Error("La eliminación del usuario principal falló.");
+        }
+
+        // 4. Si todo salió bien, confirmamos los cambios
+        await connection.commit();
+        res.json({ message: "Usuario y su perfil asociado han sido eliminados exitosamente." });
+
+    } catch (error) {
+        // Si algo falla en cualquier paso, revertimos TODOS los cambios
+        await connection.rollback();
+        console.error("Error al eliminar usuario (transacción revertida):", error);
+        res.status(500).json({ message: "Error interno del servidor al intentar eliminar el usuario." });
+    } finally {
+        // Siempre liberamos la conexión al final
+        connection.release();
+    }
+};
+
+// ACTUALIZAR ROL (Update) - ¡NUEVA FUNCIÓN!
+const actualizarRolUsuario = async (req, res) => {
+    try {
+        const { idUsuario } = req.params;
+        const { nuevoRol } = req.body; // ej: "GESTOR"
+
+        if (!nuevoRol) {
+            return res.status(400).json({ message: "El nuevo rol es requerido." });
+        }
+
+        // 1. Buscamos el ID del rol en la base de datos
+        const [roles] = await pool.query("SELECT idRol FROM Roles WHERE nomRol = ?", [nuevoRol]);
+        
+        if (roles.length === 0) {
+            return res.status(404).json({ message: `El rol '${nuevoRol}' no es válido.` });
+        }
+        const idNuevoRol = roles[0].idRol;
+
+        // 2. Actualizamos el usuario con el nuevo ID de rol
+        const [result] = await pool.query(
+            "UPDATE Usuarios SET idRol = ? WHERE idUsuario = ?",
+            [idNuevoRol, idUsuario]
         );
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Usuario no encontrado." });
         }
+        
+        res.json({ message: "Rol del usuario actualizado exitosamente." });
 
-        res.json({ message: "Administrador eliminado correctamente." });
     } catch (error) {
-        console.error("Error al eliminar administrador:", error);
-        res.status(500).json({ message: "Error del servidor." });
+        console.error("Error al actualizar el rol del usuario:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
     }
 };
 
-
 module.exports = {
-    listarAdministradores,
-    asignarRol,
-    editarAdministrador,
-    eliminarAdministrador
+    listarConductoresYPendientes,
+    eliminarUsuario,
+    actualizarRolUsuario,
+
 };

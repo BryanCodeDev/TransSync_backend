@@ -1,335 +1,419 @@
 // src/controllers/chatbotController.js
 
 const pool = require('../config/db');
+const nlpProcessor = require('../utils/nlpProcessor');
+const conversationMemory = require('../utils/conversationMemory');
+const queryEngine = require('../utils/queryEngine');
+const cacheService = require('../utils/cacheService');
 
 /**
- * Procesar consulta del chatbot y generar respuesta inteligente
+ * Procesar consulta del chatbot con procesamiento inteligente avanzado
  */
 const procesarConsulta = async (req, res) => {
+    const startTime = Date.now();
+
     try {
         const { mensaje, idEmpresa = 1, idUsuario = null } = req.body;
 
         if (!mensaje || mensaje.trim() === '') {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: 'El mensaje es requerido',
                 respuesta: 'Por favor, escribe tu consulta.'
             });
         }
 
-        // Analizar el mensaje y determinar la intención
-        const intencion = analizarIntencion(mensaje.toLowerCase());
-        
-        // Generar respuesta basada en la intención y datos reales
-        const respuesta = await generarRespuesta(intencion, mensaje, idEmpresa);
+        // Procesamiento inteligente del mensaje
+        const nlpAnalysis = nlpProcessor.processMessage(mensaje);
+        const conversationContext = conversationMemory.getRelevantContext(idUsuario, mensaje, idEmpresa);
+        const smartQuery = queryEngine.generateQuery(
+            nlpAnalysis.semanticAnalysis.intent,
+            nlpAnalysis.entities,
+            nlpAnalysis.context,
+            { idUsuario, idEmpresa }
+        );
 
-        // Registrar la interacción para análisis posterior
-        await registrarInteraccion(mensaje, respuesta, idEmpresa, idUsuario);
+        // Ejecutar consulta con cache inteligente
+        let resultado;
+        if (smartQuery.sql) {
+            resultado = await cacheService.getWithCache(
+                smartQuery.sql,
+                smartQuery.params,
+                { idUsuario, idEmpresa },
+                async () => {
+                    const [rows] = await pool.query(smartQuery.sql, smartQuery.params);
+                    return rows;
+                }
+            );
+        }
+
+        // Generar respuesta inteligente
+        const respuestaInteligente = await generateIntelligentResponse(
+            nlpAnalysis,
+            resultado,
+            conversationContext,
+            smartQuery
+        );
+
+        // Registrar en memoria de conversación
+        conversationMemory.addMessage(idUsuario, {
+            text: mensaje,
+            sender: 'user',
+            intent: nlpAnalysis.semanticAnalysis.intent,
+            entities: nlpAnalysis.entities,
+            success: true
+        }, idEmpresa);
+
+        conversationMemory.addMessage(idUsuario, {
+            text: respuestaInteligente.respuesta,
+            sender: 'bot',
+            intent: nlpAnalysis.semanticAnalysis.intent,
+            success: true
+        }, idEmpresa);
+
+        // Calcular indicadores de confianza
+        const confianza = calculateConfidenceIndicator(nlpAnalysis, smartQuery, resultado);
 
         res.json({
             success: true,
-            intencion: intencion.tipo,
-            respuesta: respuesta,
-            timestamp: new Date().toISOString()
+            respuesta: respuestaInteligente.respuesta,
+            intencion: nlpAnalysis.semanticAnalysis.intent,
+            confianza: confianza,
+            tiempoProcesamiento: Date.now() - startTime,
+            sugerencias: conversationMemory.getSuggestions(idUsuario, idEmpresa),
+            metadata: {
+                entitiesEncontradas: Object.keys(nlpAnalysis.entities).filter(key =>
+                    nlpAnalysis.entities[key] && nlpAnalysis.entities[key].length > 0
+                ),
+                complejidadConsulta: smartQuery.complexity || 1,
+                consultaSQL: smartQuery.sql ? 'Generada automáticamente' : 'No requerida'
+            }
         });
 
     } catch (error) {
         console.error('Error en procesarConsulta:', error);
-        res.status(500).json({ 
+
+        // Registrar error en memoria
+        if (idUsuario) {
+            conversationMemory.addMessage(idUsuario, {
+                text: mensaje,
+                sender: 'user',
+                intent: 'error',
+                success: false
+            }, idEmpresa);
+
+            conversationMemory.addMessage(idUsuario, {
+                text: 'Lo siento, ocurrió un error procesando tu consulta.',
+                sender: 'bot',
+                intent: 'error',
+                success: false
+            }, idEmpresa);
+        }
+
+        res.status(500).json({
             message: 'Error del servidor',
-            respuesta: 'Lo siento, ocurrió un error procesando tu consulta. Por favor intenta de nuevo.'
+            respuesta: 'Lo siento, ocurrió un error procesando tu consulta. Por favor intenta de nuevo.',
+            tiempoProcesamiento: Date.now() - startTime
         });
     }
 };
 
 /**
- * Analizar la intención del mensaje del usuario
+ * Generar respuesta inteligente basada en análisis NLP y datos
  */
-function analizarIntencion(mensaje) {
-    const intenciones = {
-        saludo: {
-            palabras: ['hola', 'buenos', 'buenas', 'saludos', 'hey', 'hi'],
-            tipo: 'saludo'
-        },
-        conductores: {
-            palabras: ['conductor', 'conductores', 'chofer', 'choferes', 'driver'],
-            tipo: 'conductores'
-        },
-        vehiculos: {
-            palabras: ['vehiculo', 'vehiculos', 'vehículo', 'vehículos', 'bus', 'buses', 'auto', 'carro', 'flota'],
-            tipo: 'vehiculos'
-        },
-        rutas: {
-            palabras: ['ruta', 'rutas', 'recorrido', 'recorridos', 'trayecto', 'itinerario'],
-            tipo: 'rutas'
-        },
-        horarios: {
-            palabras: ['horario', 'horarios', 'tiempo', 'hora', 'programacion', 'cronograma'],
-            tipo: 'horarios'
-        },
-        estado: {
-            palabras: ['estado', 'estatus', 'situacion', 'condicion', 'disponible', 'activo', 'inactivo'],
-            tipo: 'estado'
-        },
-        reportes: {
-            palabras: ['reporte', 'reportes', 'informe', 'informes', 'estadistica', 'estadisticas', 'datos'],
-            tipo: 'reportes'
-        },
-        vencimientos: {
-            palabras: ['vencimiento', 'vencimientos', 'expira', 'caduca', 'licencia', 'soat', 'tecnica'],
-            tipo: 'vencimientos'
-        },
-        ayuda: {
-            palabras: ['ayuda', 'help', 'que puedes hacer', 'opciones', 'menu', 'funciones'],
-            tipo: 'ayuda'
-        },
-        despedida: {
-            palabras: ['gracias', 'thanks', 'adios', 'bye', 'chao', 'hasta luego'],
-            tipo: 'despedida'
-        }
-    };
-
-    // Buscar coincidencias
-    for (const [key, intencion] of Object.entries(intenciones)) {
-        if (intencion.palabras.some(palabra => mensaje.includes(palabra))) {
-            return { tipo: intencion.tipo, confianza: 0.8 };
-        }
-    }
-
-    return { tipo: 'desconocido', confianza: 0.1 };
-}
-
-/**
- * Generar respuesta basada en la intención y datos reales
- */
-async function generarRespuesta(intencion, mensaje, idEmpresa) {
+async function generateIntelligentResponse(nlpAnalysis, queryResult, conversationContext, smartQuery) {
     try {
-        switch (intencion.tipo) {
-            case 'saludo':
-                return await responderSaludo();
+        const { intent, confidence } = nlpAnalysis.semanticAnalysis;
+        const entities = nlpAnalysis.entities;
 
-            case 'conductores':
-                return await responderConductores(mensaje, idEmpresa);
+        // Si la confianza es baja, usar respuesta genérica
+        if (confidence < 0.3) {
+            return {
+                respuesta: generateFallbackResponse(intent, entities),
+                tipo: 'fallback'
+            };
+        }
 
-            case 'vehiculos':
-                return await responderVehiculos(mensaje, idEmpresa);
+        // Generar respuesta basada en intención y resultados
+        let respuesta;
 
-            case 'rutas':
-                return await responderRutas(mensaje, idEmpresa);
+        switch (intent) {
+            case 'count_driver':
+            case 'count_vehicle':
+                respuesta = await generateCountResponse(intent, queryResult, entities);
+                break;
 
-            case 'horarios':
-                return await responderHorarios(mensaje, idEmpresa);
+            case 'list_vehicle':
+            case 'list_route':
+            case 'list_schedule':
+                respuesta = await generateListResponse(intent, queryResult, entities);
+                break;
 
-            case 'estado':
-                return await responderEstado(mensaje, idEmpresa);
+            case 'license_expiry':
+                respuesta = await generateLicenseExpiryResponse(queryResult);
+                break;
 
-            case 'reportes':
-                return await responderReportes(mensaje, idEmpresa);
+            case 'vehicle_maintenance':
+                respuesta = await generateMaintenanceResponse(queryResult);
+                break;
 
-            case 'vencimientos':
-                return await responderVencimientos(mensaje, idEmpresa);
+            case 'system_status':
+                respuesta = await generateSystemStatusResponse(queryResult);
+                break;
 
-            case 'ayuda':
-                return responderAyuda();
+            case 'greeting':
+                respuesta = generateGreetingResponse(conversationContext);
+                break;
 
-            case 'despedida':
-                return responderDespedida();
+            case 'help':
+                respuesta = generateHelpResponse();
+                break;
+
+            case 'farewell':
+                respuesta = generateFarewellResponse();
+                break;
 
             default:
-                return responderDesconocido();
+                respuesta = generateDefaultResponse(intent, queryResult, entities);
+                break;
         }
+
+        return {
+            respuesta: respuesta,
+            tipo: intent,
+            fuente: queryResult ? 'database' : 'generated'
+        };
+
     } catch (error) {
-        console.error('Error generando respuesta:', error);
-        return 'Lo siento, no pude procesar tu consulta en este momento. Por favor contacta al administrador del sistema.';
+        console.error('Error generando respuesta inteligente:', error);
+        return {
+            respuesta: 'Lo siento, tuve un problema generando la respuesta. ¿Puedes reformular tu consulta?',
+            tipo: 'error'
+        };
     }
 }
 
 /**
- * Respuestas específicas por tipo
+ * Calcular indicador de confianza para la respuesta
  */
-async function responderSaludo() {
-    const saludos = [
-        '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy?',
-        '¡Buenos días! Estoy aquí para ayudarte con información sobre conductores, vehículos, rutas y más.',
-        '¡Saludos! ¿Qué información necesitas del sistema TransSync?'
+function calculateConfidenceIndicator(nlpAnalysis, smartQuery, queryResult) {
+    let confidence = nlpAnalysis.semanticAnalysis.confidence || 0.5;
+
+    // Aumentar confianza si se generó una consulta SQL válida
+    if (smartQuery.sql) confidence += 0.2;
+
+    // Aumentar confianza si se obtuvieron resultados
+    if (queryResult && queryResult.length > 0) confidence += 0.1;
+
+    // Aumentar confianza si hay entidades reconocidas
+    const entitiesCount = Object.values(nlpAnalysis.entities).reduce((sum, arr) => sum + arr.length, 0);
+    confidence += Math.min(entitiesCount * 0.05, 0.2);
+
+    return Math.min(confidence, 0.95);
+}
+
+/**
+ * Generar respuesta para consultas de conteo
+ */
+async function generateCountResponse(intent, queryResult, entities) {
+    if (!queryResult || queryResult.length === 0) {
+        return 'No pude obtener la información solicitada. Verifica tu conexión.';
+    }
+
+    const count = queryResult[0].total || 0;
+    const entityType = intent.includes('driver') ? 'conductores' : 'vehículos';
+
+    let respuesta = `📊 **${count} ${entityType}** encontrados`;
+
+    // Agregar contexto adicional
+    if (entities.locations && entities.locations.length > 0) {
+        respuesta += ` en ${entities.locations[0]}`;
+    }
+
+    if (entities.temporalExpressions && entities.temporalExpressions.length > 0) {
+        respuesta += ` para ${entities.temporalExpressions[0]}`;
+    }
+
+    return respuesta;
+}
+
+/**
+ * Generar respuesta para consultas de lista
+ */
+async function generateListResponse(intent, queryResult, entities) {
+    if (!queryResult || queryResult.length === 0) {
+        return 'No encontré registros que coincidan con tu consulta.';
+    }
+
+    const maxItems = 10;
+    const items = queryResult.slice(0, maxItems);
+    const entityType = intent.replace('list_', '');
+
+    let respuesta = `📋 **${items.length} ${entityType}(s) encontrado(s):**\n\n`;
+
+    items.forEach((item, index) => {
+        respuesta += `${index + 1}. `;
+
+        switch (intent) {
+            case 'list_vehicle':
+                respuesta += `🚗 ${item.plaVehiculo || 'Sin placa'} - ${item.modVehiculo || 'Sin modelo'} (${item.estVehiculo || 'Sin estado'})`;
+                break;
+            case 'list_route':
+                respuesta += `🛣️ ${item.nomRuta || 'Sin nombre'} - ${item.oriRuta || 'Origen'} → ${item.desRuta || 'Destino'}`;
+                break;
+            case 'list_schedule':
+                respuesta += `⏰ ${item.fecHorSalViaje || 'Sin horario'} - ${item.estViaje || 'Sin estado'}`;
+                break;
+            default:
+                respuesta += JSON.stringify(item);
+        }
+
+        respuesta += '\n';
+    });
+
+    if (queryResult.length > maxItems) {
+        respuesta += `\n... y ${queryResult.length - maxItems} más.`;
+    }
+
+    return respuesta;
+}
+
+/**
+ * Generar respuesta para vencimientos de licencias
+ */
+async function generateLicenseExpiryResponse(queryResult) {
+    if (!queryResult || queryResult.length === 0) {
+        return '✅ ¡Excelente! No hay licencias próximas a vencer en los próximos 30 días.';
+    }
+
+    const count = queryResult.length;
+    let respuesta = `⚠️ **${count} licencia(s) próxima(s) a vencer:**\n\n`;
+
+    queryResult.forEach((item, index) => {
+        const nombre = `${item.nomConductor || 'Sin nombre'} ${item.apeConductor || ''}`.trim();
+        const fecha = item.fecVenLicConductor ? new Date(item.fecVenLicConductor).toLocaleDateString('es-ES') : 'Sin fecha';
+
+        respuesta += `${index + 1}. 👨‍💼 ${nombre}\n`;
+        respuesta += `   📅 Vence: ${fecha}\n`;
+        respuesta += `   🔢 Licencia: ${item.numLicConductor || 'Sin número'}\n\n`;
+    });
+
+    respuesta += 'Recuerda renovar estas licencias antes de la fecha de vencimiento.';
+
+    return respuesta;
+}
+
+/**
+ * Generar respuesta para vehículos en mantenimiento
+ */
+async function generateMaintenanceResponse(queryResult) {
+    if (!queryResult || queryResult.length === 0) {
+        return '✅ No hay vehículos en mantenimiento actualmente.';
+    }
+
+    const count = queryResult.length;
+    let respuesta = `🔧 **${count} vehículo(s) en mantenimiento:**\n\n`;
+
+    queryResult.forEach((item, index) => {
+        respuesta += `${index + 1}. 🚗 ${item.plaVehiculo || 'Sin placa'} - ${item.modVehiculo || 'Sin modelo'}\n`;
+        respuesta += `   📅 SOAT: ${item.fecVenSOAT ? new Date(item.fecVenSOAT).toLocaleDateString('es-ES') : 'N/A'}\n`;
+        respuesta += `   📅 Técnico: ${item.fecVenTec ? new Date(item.fecVenTec).toLocaleDateString('es-ES') : 'N/A'}\n\n`;
+    });
+
+    return respuesta;
+}
+
+/**
+ * Generar respuesta para estado del sistema
+ */
+async function generateSystemStatusResponse(queryResult) {
+    if (!queryResult || queryResult.length === 0) {
+        return '📊 No pude obtener el estado actual del sistema.';
+    }
+
+    const stats = queryResult[0];
+    let respuesta = `📊 **Estado General del Sistema:**\n\n`;
+    respuesta += `👨‍💼 **Conductores activos:** ${stats.conductoresActivos || 0}\n`;
+    respuesta += `🚗 **Vehículos disponibles:** ${stats.vehiculosDisponibles || 0}\n`;
+    respuesta += `🔄 **Viajes en curso:** ${stats.viajesEnCurso || 0}\n\n`;
+
+    // Determinar estado general
+    const totalElements = (stats.conductoresActivos || 0) + (stats.vehiculosDisponibles || 0);
+    if (totalElements > 10) {
+        respuesta += '🟢 **Estado:** Excelente - Sistema funcionando óptimamente';
+    } else if (totalElements > 5) {
+        respuesta += '🟡 **Estado:** Bueno - Operaciones normales';
+    } else {
+        respuesta += '🔴 **Estado:** Atención requerida - Revisar recursos disponibles';
+    }
+
+    return respuesta;
+}
+
+/**
+ * Generar respuesta de saludo contextual
+ */
+function generateGreetingResponse(conversationContext) {
+    const greetings = [
+        '¡Hola! Soy tu asistente inteligente de TransSync. ¿En qué puedo ayudarte hoy?',
+        '¡Buenos días! Estoy aquí para ayudarte con información sobre tu flota. ¿Qué necesitas saber?',
+        '¡Saludos! ¿Qué información del sistema TransSync te gustaría consultar?'
     ];
-    return saludos[Math.floor(Math.random() * saludos.length)];
-}
 
-async function responderConductores(mensaje, idEmpresa) {
-    try {
-        const [estadisticas] = await pool.query(`
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN estConductor = 'ACTIVO' THEN 1 ELSE 0 END) as activos,
-                SUM(CASE WHEN estConductor = 'INACTIVO' THEN 1 ELSE 0 END) as inactivos,
-                SUM(CASE WHEN v.idConductorAsignado IS NOT NULL THEN 1 ELSE 0 END) as conVehiculo
-            FROM Conductores c
-            LEFT JOIN Vehiculos v ON c.idConductor = v.idConductorAsignado
-            WHERE c.idEmpresa = ?
-        `, [idEmpresa]);
+    let greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
-        const stats = estadisticas[0];
-        
-        if (mensaje.includes('activo') || mensaje.includes('disponible')) {
-            return `📊 **Estado de Conductores:**\n• **Activos:** ${stats.activos} conductores\n• **Con vehículo asignado:** ${stats.conVehiculo}\n• **Disponibles:** ${stats.activos - stats.conVehiculo}\n\nPuedes consultar más detalles en la sección Conductores del panel principal.`;
-        }
-
-        return `👨‍💼 **Resumen de Conductores:**\n• **Total:** ${stats.total} conductores registrados\n• **Activos:** ${stats.activos}\n• **Inactivos:** ${stats.inactivos}\n• **Con vehículo asignado:** ${stats.conVehiculo}\n\n¿Te interesa información específica sobre licencias o asignaciones?`;
-    } catch (error) {
-        return 'No pude acceder a la información de conductores en este momento. Verifica tu conexión o contacta al administrador.';
+    // Personalizar basado en contexto de conversación
+    if (conversationContext.recentMessages && conversationContext.recentMessages.length > 0) {
+        greeting += '\n\nVeo que has estado consultando información recientemente. ¿Necesitas más detalles sobre algo específico?';
     }
+
+    return greeting;
 }
 
-async function responderVehiculos(mensaje, idEmpresa) {
-    try {
-        const [estadisticas] = await pool.query(`
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN estVehiculo = 'DISPONIBLE' THEN 1 ELSE 0 END) as disponibles,
-                SUM(CASE WHEN estVehiculo = 'EN_RUTA' THEN 1 ELSE 0 END) as enRuta,
-                SUM(CASE WHEN estVehiculo = 'EN_MANTENIMIENTO' THEN 1 ELSE 0 END) as enMantenimiento,
-                SUM(CASE WHEN idConductorAsignado IS NOT NULL THEN 1 ELSE 0 END) as conConductor
-            FROM Vehiculos
-            WHERE idEmpresa = ?
-        `, [idEmpresa]);
-
-        const stats = estadisticas[0];
-
-        if (mensaje.includes('disponible') || mensaje.includes('libre')) {
-            return `🚌 **Vehículos Disponibles:**\n• **Disponibles:** ${stats.disponibles} vehículos\n• **En ruta:** ${stats.enRuta}\n• **En mantenimiento:** ${stats.enMantenimiento}\n\nConsulta el panel de Vehículos para ver detalles específicos de cada unidad.`;
-        }
-
-        return `🚗 **Estado de la Flota:**\n• **Total:** ${stats.total} vehículos\n• **Disponibles:** ${stats.disponibles}\n• **En ruta:** ${stats.enRuta}\n• **En mantenimiento:** ${stats.enMantenimiento}\n• **Con conductor:** ${stats.conConductor}\n\n¿Necesitas información sobre mantenimientos o asignaciones?`;
-    } catch (error) {
-        return 'No pude acceder a la información de vehículos. Por favor intenta más tarde.';
-    }
+/**
+ * Generar respuesta de ayuda
+ */
+function generateHelpResponse() {
+    return `🔧 **¿En qué puedo ayudarte?**\n\nPuedo proporcionarte información inteligente sobre:\n\n🚗 **Vehículos:** Estado, disponibilidad, mantenimiento\n👨‍💼 **Conductores:** Disponibilidad, licencias, asignaciones\n📍 **Rutas:** Recorridos registrados y programación\n⏰ **Horarios:** Viajes programados y en curso\n📊 **Sistema:** Estado general y estadísticas\n⚠️ **Vencimientos:** Alertas de documentos próximos a vencer\n\n**Ejemplos de consultas inteligentes:**\n• "¿Cuántos conductores activos hay?"\n• "¿Qué vehículos están disponibles?"\n• "¿Hay licencias por vencer?"\n• "¿Cuál es el estado general del sistema?"\n• "Muéstrame las rutas disponibles"\n\n¡Solo escribe tu consulta de forma natural!`;
 }
 
-async function responderRutas(mensaje, idEmpresa) {
-    try {
-        const [rutas] = await pool.query(`
-            SELECT nomRuta, oriRuta, desRuta
-            FROM Rutas 
-            WHERE idEmpresa = ?
-            LIMIT 10
-        `, [idEmpresa]);
-
-        if (rutas.length === 0) {
-            return '📍 No hay rutas registradas en el sistema para tu empresa.';
-        }
-
-        let respuesta = `📍 **Rutas Registradas (${rutas.length}):**\n\n`;
-        rutas.forEach((ruta, index) => {
-            respuesta += `${index + 1}. **${ruta.nomRuta}**\n   📍 ${ruta.oriRuta} → ${ruta.desRuta}\n\n`;
-        });
-
-        respuesta += 'Consulta la sección Rutas para ver mapas interactivos y más detalles.';
-        return respuesta;
-    } catch (error) {
-        return 'No pude acceder a la información de rutas. Verifica tu conexión.';
-    }
-}
-
-async function responderHorarios(mensaje, idEmpresa) {
-    try {
-        const [viajes] = await pool.query(`
-            SELECT 
-                COUNT(*) as totalViajes,
-                SUM(CASE WHEN estViaje = 'PROGRAMADO' THEN 1 ELSE 0 END) as programados,
-                SUM(CASE WHEN estViaje = 'EN_CURSO' THEN 1 ELSE 0 END) as enCurso,
-                SUM(CASE WHEN DATE(fecHorSalViaje) = CURDATE() THEN 1 ELSE 0 END) as hoy
-            FROM Viajes v
-            JOIN Vehiculos ve ON v.idVehiculo = ve.idVehiculo
-            WHERE ve.idEmpresa = ?
-        `, [idEmpresa]);
-
-        const stats = viajes[0];
-        
-        return `⏰ **Programación de Viajes:**\n• **Total programados:** ${stats.programados}\n• **En curso:** ${stats.enCurso}\n• **Viajes de hoy:** ${stats.hoy}\n\nVisita la sección Horarios para programar nuevos viajes o consultar la agenda completa.`;
-    } catch (error) {
-        return '⏰ La información de horarios no está disponible momentáneamente. Consulta directamente en el panel de Horarios.';
-    }
-}
-
-async function responderEstado(mensaje, idEmpresa) {
-    try {
-        const [resumen] = await pool.query(`
-            SELECT 
-                (SELECT COUNT(*) FROM Conductores WHERE idEmpresa = ? AND estConductor = 'ACTIVO') as conductoresActivos,
-                (SELECT COUNT(*) FROM Vehiculos WHERE idEmpresa = ? AND estVehiculo = 'DISPONIBLE') as vehiculosDisponibles,
-                (SELECT COUNT(*) FROM Viajes v JOIN Vehiculos ve ON v.idVehiculo = ve.idVehiculo WHERE ve.idEmpresa = ? AND v.estViaje = 'EN_CURSO') as viajesEnCurso
-        `, [idEmpresa, idEmpresa, idEmpresa]);
-
-        const stats = resumen[0];
-
-        return `📊 **Estado General del Sistema:**\n\n🟢 **Conductores activos:** ${stats.conductoresActivos}\n🟢 **Vehículos disponibles:** ${stats.vehiculosDisponibles}\n🔵 **Viajes en curso:** ${stats.viajesEnCurso}\n\nTodo funcionando correctamente. Consulta cada sección para más detalles específicos.`;
-    } catch (error) {
-        return '📊 No puedo acceder al estado general en este momento. Verifica las secciones individuales del sistema.';
-    }
-}
-
-async function responderVencimientos(mensaje, idEmpresa) {
-    try {
-        const [licencias] = await pool.query(`
-            SELECT COUNT(*) as count
-            FROM Conductores 
-            WHERE idEmpresa = ? 
-            AND fecVenLicConductor <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-            AND fecVenLicConductor >= CURDATE()
-        `, [idEmpresa]);
-
-        const [vehiculos] = await pool.query(`
-            SELECT COUNT(*) as count
-            FROM Vehiculos 
-            WHERE idEmpresa = ? 
-            AND (
-                fecVenSOAT <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) OR
-                fecVenTec <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-            )
-        `, [idEmpresa]);
-
-        const licenciasVencen = licencias[0].count;
-        const vehiculosVencen = vehiculos[0].count;
-
-        if (licenciasVencen === 0 && vehiculosVencen === 0) {
-            return '✅ **Vencimientos:** ¡Perfecto! No hay documentos próximos a vencer en los próximos 30 días.';
-        }
-
-        let respuesta = '⚠️ **Alertas de Vencimiento (próximos 30 días):**\n\n';
-        if (licenciasVencen > 0) {
-            respuesta += `🪪 **${licenciasVencen} licencias de conducir** próximas a vencer\n`;
-        }
-        if (vehiculosVencen > 0) {
-            respuesta += `🚗 **${vehiculosVencen} vehículos** con documentos próximos a vencer\n`;
-        }
-        respuesta += '\nRevisa las secciones correspondientes para tomar las acciones necesarias.';
-
-        return respuesta;
-    } catch (error) {
-        return '⚠️ No pude verificar los vencimientos. Consulta directamente las secciones de Conductores y Vehículos.';
-    }
-}
-
-async function responderReportes(mensaje, idEmpresa) {
-    return `📊 **Reportes Disponibles:**\n\n• **Dashboard Principal:** Métricas en tiempo real\n• **Informes de Conductores:** Rendimiento y estadísticas\n• **Reportes de Flota:** Estado y utilización de vehículos\n• **Análisis de Rutas:** Eficiencia y tiempos\n• **Reportes de Mantenimiento:** Historial y programación\n\nAccede a la sección Informes para generar reportes detallados y exportar datos.`;
-}
-
-function responderAyuda() {
-    return `🔧 **¿En qué puedo ayudarte?**\n\nPuedo proporcionarte información sobre:\n\n🚗 **Vehículos:** Estado, disponibilidad, mantenimiento\n👨‍💼 **Conductores:** Disponibilidad, licencias, asignaciones\n📍 **Rutas:** Recorridos registrados y programación\n⏰ **Horarios:** Viajes programados y en curso\n📊 **Reportes:** Estadísticas y análisis del sistema\n⚠️ **Vencimientos:** Alertas de documentos próximos a vencer\n\n**Ejemplos de consultas:**\n• "¿Cuántos conductores están activos?"\n• "Muéstrame el estado de los vehículos"\n• "¿Hay licencias por vencer?"\n• "¿Qué rutas tenemos disponibles?"`;
-}
-
-function responderDespedida() {
-    const despedidas = [
-        '¡De nada! Estoy aquí cuando necesites información del sistema TransSync.',
+/**
+ * Generar respuesta de despedida
+ */
+function generateFarewellResponse() {
+    const farewells = [
+        '¡Hasta luego! Estaré aquí cuando necesites información del sistema TransSync.',
         '¡Perfecto! No dudes en consultarme cuando requieras datos actualizados.',
-        '¡Hasta pronto! Estaré disponible para ayudarte con el sistema.'
+        '¡Adiós! Recuerda que estoy disponible 24/7 para ayudarte con tu flota.'
     ];
-    return despedidas[Math.floor(Math.random() * despedidas.length)];
+
+    return farewells[Math.floor(Math.random() * farewells.length)];
 }
 
-function responderDesconocido() {
-    return `🤔 No entendí completamente tu consulta. \n\n**Puedo ayudarte con:**\n• Estado de conductores y vehículos\n• Información de rutas y horarios\n• Reportes y estadísticas\n• Alertas de vencimientos\n\n**Prueba preguntando:**\n• "¿Cuántos conductores están disponibles?"\n• "Muestra el estado de la flota"\n• "¿Hay documentos por vencer?"\n\nO simplemente escribe "ayuda" para ver todas mis funciones.`;
+/**
+ * Generar respuesta por defecto
+ */
+function generateDefaultResponse(intent, queryResult, entities) {
+    if (queryResult && queryResult.length > 0) {
+        return `📋 Encontré ${queryResult.length} resultado(s) para tu consulta sobre ${intent}.`;
+    }
+
+    return `🤔 Procesé tu consulta sobre ${intent}. ¿Puedes darme más detalles para ayudarte mejor?`;
 }
+
+/**
+ * Generar respuesta fallback para baja confianza
+ */
+function generateFallbackResponse(intent, entities) {
+    const suggestions = [
+        '¿Puedes ser más específico? Por ejemplo: "¿Cuántos conductores están activos?"',
+        'Intenta reformular tu consulta. Puedo ayudarte con información sobre conductores, vehículos, rutas, etc.',
+        'No entendí completamente. ¿Te refieres al estado de los vehículos o conductores?'
+    ];
+
+    return suggestions[Math.floor(Math.random() * suggestions.length)];
+}
+
+
 
 /**
  * Registrar interacción para análisis posterior
