@@ -46,24 +46,25 @@ const getProfile = async (req, res) => {
             });
         }
 
-        res.json({
+        const responseData = {
             success: true,
             data: {
                 idUsuario: user.idUsuario,
-                nomUsuario: user.nomUsuario,
-                apeUsuario: user.apeUsuario,
-                email: user.email,
-                telUsuario: user.telUsuario,
-                numDocUsuario: user.numDocUsuario,
+                nomUsuario: user.nomUsuario || '',
+                apeUsuario: user.apeUsuario || '',
+                email: user.email || '',
+                telUsuario: user.telUsuario || '',
+                numDocUsuario: user.numDocUsuario || '',
                 idRol: user.idRol,
-                nomRol: user.nomRol,
+                nomRol: user.nomRol || '',
                 idEmpresa: user.idEmpresa,
-                nomEmpresa: user.nomEmpresa,
+                nomEmpresa: user.nomEmpresa || '',
                 estActivo: user.estActivo,
                 fecCreUsuario: user.fecCreUsuario,
                 fecUltModUsuario: user.fecUltModUsuario
             }
-        });
+        };
+        res.json(responseData);
 
     } catch (error) {
         console.error("Error al obtener perfil:", error);
@@ -349,7 +350,9 @@ const getPreferences = async (req, res) => {
             });
         }
 
-        const preferences = JSON.parse(rows[0].preferences);
+        const preferences = typeof rows[0].preferences === 'string'
+            ? JSON.parse(rows[0].preferences)
+            : rows[0].preferences;
 
         res.json({
             success: true,
@@ -448,7 +451,9 @@ const getNotificationSettings = async (req, res) => {
             });
         }
 
-        const settings = JSON.parse(rows[0].notificationSettings);
+        const settings = typeof rows[0].notificationSettings === 'string'
+            ? JSON.parse(rows[0].notificationSettings)
+            : rows[0].notificationSettings;
 
         res.json({
             success: true,
