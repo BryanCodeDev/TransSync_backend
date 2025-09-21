@@ -467,9 +467,9 @@ router.get("/auto-update/config",
                     isActive,
                     updateStats,
                     intervals: {
-                        stats: '5 minutos',
-                        realtime: '1 minuto',
-                        alerts: '10 minutos'
+                        stats: '1 hora',
+                        realtime: '1 hora',
+                        alerts: '1 hora'
                     },
                     timestamp: new Date().toISOString()
                 }

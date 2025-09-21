@@ -107,32 +107,32 @@ class DashboardRealTimeService {
         // Detener actualizaciones existentes para esta empresa
         this.stopDashboardUpdates(empresaId);
 
-        // Actualizar estadísticas generales cada 5 minutos (antes era 30 segundos)
+        // Actualizar estadísticas generales cada 1 hora
         const statsInterval = setInterval(async () => {
             try {
                 await this.updateGeneralStats(empresaId);
             } catch (error) {
                 console.error(`Error actualizando estadísticas generales para empresa ${empresaId}:`, error);
             }
-        }, 300000);
+        }, 3600000);
 
-        // Actualizar datos en tiempo real cada 1 minuto (antes era 10 segundos)
+        // Actualizar datos en tiempo real cada 1 hora
         const realtimeInterval = setInterval(async () => {
             try {
                 await this.updateRealTimeData(empresaId);
             } catch (error) {
                 console.error(`Error actualizando datos en tiempo real para empresa ${empresaId}:`, error);
             }
-        }, 60000);
+        }, 3600000);
 
-        // Actualizar alertas cada 10 minutos (antes era 2 minutos)
+        // Actualizar alertas cada 1 hora
         const alertsInterval = setInterval(async () => {
             try {
                 await this.updateAlerts(empresaId);
             } catch (error) {
                 console.error(`Error actualizando alertas para empresa ${empresaId}:`, error);
             }
-        }, 600000);
+        }, 3600000);
 
         // Almacenar intervalos
         this.updateIntervals.set(empresaId, {
