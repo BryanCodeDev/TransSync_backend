@@ -35,7 +35,14 @@ class CacheService {
             schedule_queries: 300, // 5 minutos (más dinámicas)
             system_status: 120, // 2 minutos (muy dinámico)
             license_queries: 3600, // 1 hora (cambios mensuales)
-            maintenance_queries: 1800 // 30 minutos
+            maintenance_queries: 1800, // 30 minutos
+            // Configuraciones específicas para dashboard
+            dashboard_stats_general: 120, // 2 minutos para estadísticas generales
+            dashboard_charts_data: 300, // 5 minutos para datos de gráficos
+            dashboard_alerts_active: 3600, // 1 hora para alertas (cambian menos)
+            dashboard_realtime_data: 30, // 30 segundos para datos en tiempo real
+            dashboard_kpis: 180, // 3 minutos para KPIs
+            dashboard_activity: 60 // 1 minuto para actividad reciente
         };
 
         // Iniciar limpieza automática
@@ -193,6 +200,90 @@ class CacheService {
 
         console.log(`Invalidado cache para empresa ${companyId}: ${invalidated} entradas`);
         return invalidated;
+    }
+
+    /**
+     * Invalidar cache específico del dashboard
+     */
+    invalidateDashboardCache(empresaId, cacheType = null) {
+        const keys = this.mainCache.keys();
+        let invalidated = 0;
+
+        keys.forEach(key => {
+            const isDashboardKey = key.includes('dashboard_');
+            const isCompanyKey = key.startsWith(`${empresaId}_`);
+
+            if (isDashboardKey && isCompanyKey) {
+                if (!cacheType || key.includes(cacheType)) {
+                    this.mainCache.del(key);
+                    invalidated++;
+                    this.stats.deletes++;
+                }
+            }
+        });
+
+        console.log(`Invalidado cache del dashboard para empresa ${empresaId}${cacheType ? ` (${cacheType})` : ''}: ${invalidated} entradas`);
+        return invalidated;
+    }
+
+    /**
+     * Precargar datos del dashboard para una empresa
+     */
+    async preloadDashboardData(pool, empresaId) {
+        console.log(`Precargando datos del dashboard para empresa ${empresaId}...`);
+
+        try {
+            // Precargar estadísticas generales
+            const statsResult = await pool.query(`
+                SELECT
+                    COUNT(DISTINCT v.idVehiculo) as totalVehiculos,
+                    COUNT(DISTINCT CASE WHEN v.estVehiculo = 'DISPONIBLE' THEN v.idVehiculo END) as vehiculosDisponibles,
+                    COUNT(DISTINCT CASE WHEN v.estVehiculo = 'EN_RUTA' THEN v.idVehiculo END) as vehiculosEnRuta,
+                    COUNT(DISTINCT CASE WHEN v.estVehiculo = 'EN_MANTENIMIENTO' THEN v.idVehiculo END) as vehiculosEnMantenimiento,
+                    COUNT(DISTINCT c.idConductor) as totalConductores,
+                    COUNT(DISTINCT CASE WHEN c.estConductor = 'ACTIVO' THEN c.idConductor END) as conductoresActivos,
+                    COUNT(DISTINCT CASE WHEN c.estConductor = 'INACTIVO' THEN c.idConductor END) as conductoresInactivos,
+                    COUNT(DISTINCT r.idRuta) as totalRutas,
+                    COUNT(DISTINCT vi.idViaje) as totalViajes,
+                    COUNT(DISTINCT CASE WHEN vi.estViaje = 'EN_CURSO' THEN vi.idViaje END) as viajesEnCurso,
+                    COUNT(DISTINCT CASE WHEN vi.estViaje = 'PROGRAMADO' THEN vi.idViaje END) as viajesProgramados
+                FROM Empresas e
+                LEFT JOIN Vehiculos v ON e.idEmpresa = v.idEmpresa
+                LEFT JOIN Conductores c ON e.idEmpresa = c.idEmpresa
+                LEFT JOIN Rutas r ON e.idEmpresa = r.idEmpresa
+                LEFT JOIN Viajes vi ON v.idVehiculo = vi.idVehiculo
+                WHERE e.idEmpresa = ?
+            `, [empresaId]);
+
+            const cacheKey = this.generateCacheKey('dashboard_stats_general', [empresaId], { idEmpresa: empresaId });
+            this.mainCache.set(cacheKey, statsResult[0], this.ttlConfig.dashboard_stats_general);
+
+            // Precargar datos en tiempo real
+            const realtimeResult = await pool.query(`
+                SELECT
+                    COUNT(DISTINCT CASE WHEN v.estVehiculo = 'EN_RUTA' THEN v.idVehiculo END) as vehiculosEnRuta,
+                    COUNT(DISTINCT CASE WHEN vi.estViaje = 'EN_CURSO' THEN vi.idViaje END) as viajesEnCurso,
+                    COUNT(DISTINCT CASE WHEN c.estConductor = 'ACTIVO' THEN c.idConductor END) as conductoresActivos,
+                    (COUNT(DISTINCT CASE WHEN DATEDIFF(c.fecVenLicConductor, CURDATE()) BETWEEN -30 AND 30 THEN c.idConductor END) +
+                     COUNT(DISTINCT CASE WHEN DATEDIFF(v.fecVenSOAT, CURDATE()) BETWEEN -30 AND 30 THEN v.idVehiculo END) +
+                     COUNT(DISTINCT CASE WHEN DATEDIFF(v.fecVenTec, CURDATE()) BETWEEN -30 AND 30 THEN v.idVehiculo END)) as alertasCriticas
+                FROM Empresas e
+                LEFT JOIN Vehiculos v ON e.idEmpresa = v.idEmpresa
+                LEFT JOIN Conductores c ON e.idEmpresa = c.idEmpresa
+                LEFT JOIN Viajes vi ON v.idVehiculo = vi.idVehiculo
+                WHERE e.idEmpresa = ?
+            `, [empresaId]);
+
+            const realtimeCacheKey = this.generateCacheKey('dashboard_realtime_data', [empresaId], { idEmpresa: empresaId });
+            this.mainCache.set(realtimeCacheKey, realtimeResult[0], this.ttlConfig.dashboard_realtime_data);
+
+            console.log(`✅ Datos del dashboard precargados para empresa ${empresaId}`);
+            return { stats: statsResult[0], realtime: realtimeResult[0] };
+
+        } catch (error) {
+            console.error(`❌ Error precargando datos del dashboard para empresa ${empresaId}:`, error);
+            throw error;
+        }
     }
 
     /**

@@ -8,8 +8,6 @@ class WebSocketService {
 
   setupConnectionHandlers() {
     this.io.on('connection', (socket) => {
-      console.log(`🔗 Cliente conectado: ${socket.userId}`);
-
       // Registrar cliente conectado
       this.registerClient(socket);
 
@@ -21,7 +19,6 @@ class WebSocketService {
 
       // Handler de desconexión
       socket.on('disconnect', () => {
-        console.log(`🔌 Cliente desconectado: ${socket.userId}`);
         this.unregisterClient(socket);
       });
     });
@@ -50,8 +47,6 @@ class WebSocketService {
 
     // Unir a sala de rol
     socket.join(`rol_${socket.rol}`);
-
-    console.log(`🏠 Usuario ${socket.userId} unido a salas: empresa_${socket.empresaId}, usuario_${socket.userId}, rol_${socket.rol}`);
   }
 
   setupEventHandlers(socket) {

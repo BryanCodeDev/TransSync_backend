@@ -7,6 +7,10 @@ require('dotenv').config();
 
 const routes = require("./src/routes");
 const RealTimeService = require("./src/utilidades/realTimeService");
+const DashboardRealTimeService = require("./src/services/dashboardRealTimeService");
+const dashboardEventService = require("./src/services/dashboardEventService");
+const DashboardPushService = require("./src/services/dashboardPushService");
+const cacheService = require("./src/utils/cacheService");
 
 // Crear servidor HTTP y Express
 const app = express();
@@ -22,9 +26,18 @@ global.app = app;
 // Inicializar RealTimeService (única instancia de WebSocket)
 const realTimeService = new RealTimeService(server);
 
+// Inicializar DashboardRealTimeService
+const dashboardRealTimeService = new DashboardRealTimeService(realTimeService);
+
+// Inicializar DashboardPushService
+const dashboardPushService = new DashboardPushService(realTimeService);
+
 // Hacer servicios disponibles globalmente
 global.io = realTimeService.io;
 global.realTimeService = realTimeService;
+global.dashboardRealTimeService = dashboardRealTimeService;
+global.dashboardPushService = dashboardPushService;
+global.cacheService = cacheService;
 
 // Importar servicio de programador para alertas automáticas
 require('./src/services/schedulerService');

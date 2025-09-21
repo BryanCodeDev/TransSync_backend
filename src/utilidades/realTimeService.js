@@ -33,8 +33,6 @@ class RealTimeService {
    */
   setupConnectionHandlers() {
     this.io.on('connection', (socket) => {
-      console.log(`🔗 Cliente conectado: ${socket.id}`);
-
       // Middleware de autenticación
       socket.on('authenticate', (authData) => {
         this.handleAuthentication(socket, authData);
@@ -42,7 +40,6 @@ class RealTimeService {
 
       // Handler de desconexión
       socket.on('disconnect', (reason) => {
-        console.log(`🔌 Cliente desconectado: ${socket.id} - Razón: ${reason}`);
         this.handleDisconnection(socket, reason);
       });
 
@@ -136,7 +133,6 @@ class RealTimeService {
 
     rooms.forEach(room => {
       socket.join(room);
-      console.log(`🏠 Usuario ${socket.userId} unido a sala: ${room}`);
     });
 
     // Emitir evento de conexión establecida
@@ -186,21 +182,18 @@ class RealTimeService {
       socket.on('join:empresa', (data) => {
         if (socket.authenticated) {
           socket.join(`empresa_${data.empresaId}`);
-          console.log(`🏠 Socket ${socket.id} unido a empresa: ${data.empresaId}`);
         }
       });
 
       socket.on('join:usuario', (data) => {
         if (socket.authenticated) {
           socket.join(`usuario_${data.userId}`);
-          console.log(`🏠 Socket ${socket.id} unido a usuario: ${data.userId}`);
         }
       });
 
       socket.on('join:rol', (data) => {
         if (socket.authenticated) {
           socket.join(`rol_${data.rol}`);
-          console.log(`🏠 Socket ${socket.id} unido a rol: ${data.rol}`);
         }
       });
 
@@ -215,7 +208,6 @@ class RealTimeService {
       socket.on('subscribe', (eventName) => {
         if (socket.authenticated) {
           socket.join(`event:${eventName}`);
-          console.log(`📡 Socket ${socket.id} suscrito a evento: ${eventName}`);
         }
       });
 
@@ -223,7 +215,6 @@ class RealTimeService {
       socket.on('unsubscribe', (eventName) => {
         if (socket.authenticated) {
           socket.leave(`event:${eventName}`);
-          console.log(`📡 Socket ${socket.id} canceló suscripción a evento: ${eventName}`);
         }
       });
     });
@@ -281,8 +272,6 @@ class RealTimeService {
         default:
           console.error('❌ Tipo de destino no válido:', targetType);
       }
-
-      console.log(`✅ Notificación enviada: ${event} -> ${targetType}:${targetId}`);
     } catch (error) {
       console.error('❌ Error enviando notificación:', error);
       // Re-encolar la notificación para reintentar
@@ -486,9 +475,7 @@ class RealTimeService {
       }
     }
 
-    if (cleanedCount > 0) {
-      console.log(`🧹 Limpiados ${cleanedCount} clientes inactivos`);
-    }
+    // Log eliminado para reducir spam en consola
 
     return cleanedCount;
   }
