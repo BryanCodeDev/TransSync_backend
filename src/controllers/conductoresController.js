@@ -76,16 +76,24 @@ const crearConductor = async (req, res) => {
         await connection.commit();
 
         // Notificar vía WebSocket después de crear el conductor
-        if (global.wsController) {
-            await global.wsController.notifyNewConductor({
-                idConductor: driverResult.insertId,
-                nomConductor: nomUsuario,
-                apeConductor: apeUsuario,
-                idEmpresa: idEmpresa,
-                tipLicConductor: tipLicConductor,
-                fecVenLicConductor: fecVenLicConductor,
-                estConductor: 'ACTIVO'
-            });
+        if (global.realTimeService) {
+            const notification = {
+                type: 'conductor_nuevo',
+                title: '👨‍💼 Nuevo Conductor Registrado',
+                message: `Se ha registrado el conductor ${nomUsuario} ${apeUsuario}`,
+                data: {
+                    idConductor: driverResult.insertId,
+                    nomConductor: nomUsuario,
+                    apeConductor: apeUsuario,
+                    idEmpresa: idEmpresa,
+                    tipLicConductor: tipLicConductor,
+                    fecVenLicConductor: fecVenLicConductor,
+                    estConductor: 'ACTIVO'
+                },
+                priority: 'medium'
+            };
+
+            global.realTimeService.sendToEmpresa(idEmpresa, 'conductor:created', notification);
         }
 
         res.status(201).json({ message: "Conductor creado exitosamente." });

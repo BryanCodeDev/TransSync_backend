@@ -1,13 +1,9 @@
 // src/routes/websocketRoutes.js
-const WebSocketController = require('../controllers/websocketController');
-
-module.exports = (io) => {
-  const wsController = new WebSocketController(io);
-
+module.exports = () => {
   // Función para configurar rutas cuando app esté disponible
   const setupRoutes = () => {
-    if (!global.app) {
-      console.log('⚠️ Esperando que app esté disponible...');
+    if (!global.app || !global.realTimeService) {
+      console.log('⚠️ Esperando que app y realTimeService estén disponibles...');
       setTimeout(setupRoutes, 100);
       return;
     }
@@ -15,7 +11,7 @@ module.exports = (io) => {
     // Endpoint para estadísticas de conexiones
     global.app.get('/api/websocket/stats', (req, res) => {
       try {
-        const stats = wsController.getConnectionStats();
+        const stats = global.realTimeService.getConnectionStats();
         res.json({
           success: true,
           stats: stats,
@@ -33,7 +29,7 @@ module.exports = (io) => {
     // Endpoint para clientes conectados
     global.app.get('/api/websocket/clients', (req, res) => {
       try {
-        const clients = wsController.getConnectedClients();
+        const clients = global.realTimeService.getConnectedClients();
         res.json({
           success: true,
           clients: clients,
@@ -51,9 +47,6 @@ module.exports = (io) => {
 
     console.log('✅ Rutas WebSocket configuradas exitosamente');
   };
-
-  // Hacer controlador disponible globalmente
-  global.wsController = wsController;
 
   // Configurar rutas
   setupRoutes();

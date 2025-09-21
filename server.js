@@ -1,7 +1,6 @@
 // server.js
 const express = require("express");
 const http = require('http');
-const socketIo = require('socket.io');
 const cors = require("cors");
 const path = require("path");
 require('dotenv').config();
@@ -20,42 +19,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Hacer app disponible globalmente para rutas WebSocket
 global.app = app;
 
-// Configurar Socket.IO con CORS
-const io = socketIo(server, {
-  cors: {
-    origin: [
-      'http://localhost:3000',        // Web app
-      'http://10.0.2.2:8081',         // Emulador Android con Expo
-      'http://localhost:8081',        // Expo local
-      'http://192.168.1.100:8081',    // Dispositivo físico (ajusta tu IP)
-      'exp://192.168.1.100:19000',    // Expo tunnel
-      'http://localhost:19006',       // Expo web
-      '*://localhost*',               // Cualquier puerto localhost
-    ],
-    methods: ['GET', 'POST'],
-    credentials: true
-  },
-  transports: ['websocket', 'polling']
-});
-
-// Middleware de autenticación WebSocket
-const websocketAuth = require('./src/middleware/websocketAuth');
-
-// Aplicar autenticación a conexiones WebSocket
-io.use(websocketAuth);
-
-// Inicializar RealTimeService
+// Inicializar RealTimeService (única instancia de WebSocket)
 const realTimeService = new RealTimeService(server);
 
 // Hacer servicios disponibles globalmente
-global.io = io;
+global.io = realTimeService.io;
 global.realTimeService = realTimeService;
-
-// Importar y usar rutas WebSocket
-require('./src/routes/websocketRoutes')(io);
 
 // Importar servicio de programador para alertas automáticas
 require('./src/services/schedulerService');
+
+// Importar y usar rutas WebSocket
+require('./src/routes/websocketRoutes')();
 
 // --- Configuración CORS optimizada ---
 const corsOptions = {
@@ -133,23 +108,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware para logging de requests
-if (process.env.NODE_ENV === 'development' || process.env.LOG_REQUESTS === 'true') {
-  app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    const origin = req.get('origin') || req.get('referer') || 'No origin';
-    const userAgent = req.get('user-agent') || 'Unknown';
+// Middleware para logging de requests (deshabilitado por defecto para evitar spam)
+// if (process.env.NODE_ENV === 'development' || process.env.LOG_REQUESTS === 'true') {
+//   app.use((req, res, next) => {
+//     const timestamp = new Date().toISOString();
+//     const origin = req.get('origin') || req.get('referer') || 'No origin';
+//     const userAgent = req.get('user-agent') || 'Unknown';
 
-    console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip} - Origin: ${origin} - UA: ${userAgent}`);
+//     console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip} - Origin: ${origin} - UA: ${userAgent}`);
 
-    // Log del body para POST/PUT (solo en desarrollo)
-    if ((req.method === 'POST' || req.method === 'PUT') && process.env.NODE_ENV === 'development') {
-      console.log('Body:', JSON.stringify(req.body, null, 2));
-    }
+//     // Log del body para POST/PUT (solo en desarrollo)
+//     if ((req.method === 'POST' || req.method === 'PUT') && process.env.NODE_ENV === 'development') {
+//       console.log('Body:', JSON.stringify(req.body, null, 2));
+//     }
 
-    next();
-  });
-}
+//     next();
+//   });
+// }
 
 // Middleware para compresión (solo en producción)
 if (isProduction) {

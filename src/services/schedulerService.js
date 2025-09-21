@@ -1,9 +1,9 @@
 // src/services/schedulerService.js
-const WebSocketController = require('../controllers/websocketController');
+const pool = require('../config/db');
 
 class SchedulerService {
-  constructor(wsController) {
-    this.wsController = wsController;
+  constructor(realTimeService) {
+    this.realTimeService = realTimeService;
     this.intervals = new Map();
   }
 
@@ -11,7 +11,7 @@ class SchedulerService {
   startExpirationCheck() {
     const interval = setInterval(async () => {
       try {
-        await this.wsController.checkExpirations();
+        await this.checkExpirations();
       } catch (error) {
         console.error('❌ Error en verificación programada de vencimientos:', error);
       }
@@ -35,12 +35,12 @@ class SchedulerService {
 
     setTimeout(() => {
       // Ejecutar inmediatamente
-      this.wsController.checkExpirations();
+      this.checkExpirations();
 
       // Programar para cada día a las 9 AM
       const dailyInterval = setInterval(async () => {
         try {
-          await this.wsController.checkExpirations();
+          await this.checkExpirations();
         } catch (error) {
           console.error('❌ Error en verificación diaria de vencimientos:', error);
         }
@@ -50,6 +50,64 @@ class SchedulerService {
     }, timeUntil9AM);
 
     console.log(`⏰ Verificación diaria de vencimientos programada para las 9:00 AM (en ${Math.round(timeUntil9AM / 1000 / 60)} minutos)`);
+  }
+
+  // Verificar vencimientos de documentos
+  async checkExpirations() {
+    try {
+      const [expirations] = await pool.query(`
+        SELECT
+          'LICENCIA' as tipoDocumento,
+          CONCAT(c.nomConductor, ' ', c.apeConductor) as titular,
+          c.fecVenLicConductor as fechaVencimiento,
+          DATEDIFF(c.fecVenLicConductor, CURDATE()) as diasParaVencer,
+          c.idEmpresa
+        FROM Conductores c
+        WHERE c.fecVenLicConductor BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+
+        UNION ALL
+
+        SELECT
+          'SOAT' as tipoDocumento,
+          CONCAT(v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo) as titular,
+          v.fecVenSOAT as fechaVencimiento,
+          DATEDIFF(v.fecVenSOAT, CURDATE()) as diasParaVencer,
+          v.idEmpresa
+        FROM Vehiculos v
+        WHERE v.fecVenSOAT BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+
+        UNION ALL
+
+        SELECT
+          'TECNOMECANICA' as tipoDocumento,
+          CONCAT(v.marVehiculo, ' ', v.modVehiculo, ' - ', v.plaVehiculo) as titular,
+          v.fecVenTec as fechaVencimiento,
+          DATEDIFF(v.fecVenTec, CURDATE()) as diasParaVencer,
+          v.idEmpresa
+        FROM Vehiculos v
+        WHERE v.fecVenTec BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+      `);
+
+      // Enviar alertas para cada vencimiento
+      for (const expiration of expirations) {
+        if (expiration.diasParaVencer <= 7) { // Solo alertas críticas
+          const notification = {
+            type: 'vencimiento_alerta',
+            title: '⚠️ Alerta de Vencimiento',
+            message: `Documento próximo a vencer: ${expiration.tipoDocumento} - ${expiration.titular}`,
+            data: expiration,
+            priority: 'high'
+          };
+
+          this.realTimeService.sendToEmpresa(expiration.idEmpresa, 'vencimiento:alert', notification);
+        }
+      }
+
+      console.log(`📊 Verificación de vencimientos completada: ${expirations.length} alertas enviadas`);
+
+    } catch (error) {
+      console.error('❌ Error verificando vencimientos:', error);
+    }
   }
 
   // Detener todos los intervalos
@@ -62,16 +120,15 @@ class SchedulerService {
   }
 }
 
-// Función para inicializar el programador cuando wsController esté disponible
+// Función para inicializar el programador cuando realTimeService esté disponible
 const initializeScheduler = () => {
-  if (!global.wsController) {
-    console.log('⏰ Esperando wsController para inicializar programador...');
+  if (!global.realTimeService) {
     setTimeout(initializeScheduler, 500);
     return;
   }
 
   // Iniciar programador
-  const scheduler = new SchedulerService(global.wsController);
+  const scheduler = new SchedulerService(global.realTimeService);
 
   // Iniciar verificaciones programadas
   scheduler.startExpirationCheck();
