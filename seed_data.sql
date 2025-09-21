@@ -46,7 +46,7 @@ INSERT INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, 
 INSERT INTO Gestores (idUsuario, idEmpresa) VALUES
 (3, 1), (4, 1), (7, 1), (10, 1),
 (3, 2), (4, 2), (7, 2), (10, 2),
-(3, 3), (4, 3);
+(3, 3), (4, 3), (7, 3), (10, 3);
 
 -- =====================================================
 -- INSERTAR CONDUCTORES (10 conductores)
