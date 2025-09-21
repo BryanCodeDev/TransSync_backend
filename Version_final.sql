@@ -371,4 +371,25 @@ INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
 ('Ruta Norte-Centro', 'Terminal Norte Bogotá', 'Centro Internacional Bogotá', 1),
 ('Expreso Medellín-Rionegro', 'Terminal Sur Medellín', 'Aeropuerto José María Córdova', 1),
 ('Ruta Sur-Chapinero', 'Terminal Sur Bogotá', 'Zona Rosa Chapinero', 1),
-('Ruta Envigado-Centro', 'Envigado', 'Centro Medellín', 1);
+('Ruta Envigado-Centro', 'Envigado', 'Centro Medellín', 1),
+('Ruta Centro-Occidente', 'Centro Bogotá', 'Terminal de Transportes', 1),
+('Ruta Norte-Sur', 'Portal Norte', 'Portal Sur', 1);
+
+-- Insertar vehículos de ejemplo
+INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) VALUES
+('V001', 'ABC123', 'Chevrolet', 'Spark GT', 2020, '2025-06-15', '2025-08-20', 'DISPONIBLE', 1),
+('V002', 'DEF456', 'Renault', 'Logan', 2019, '2025-03-10', '2025-05-15', 'EN_RUTA', 1),
+('V003', 'GHI789', 'Toyota', 'Corolla', 2021, '2025-09-25', '2025-11-30', 'EN_MANTENIMIENTO', 1),
+('V004', 'JKL012', 'Nissan', 'Sentra', 2020, '2025-04-18', '2025-06-22', 'DISPONIBLE', 1),
+('V005', 'MNO345', 'Mazda', 'CX-5', 2022, '2025-12-01', '2026-02-05', 'DISPONIBLE', 1);
+
+-- Insertar viajes de ejemplo
+INSERT INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje) VALUES
+(1, 1, 1, '2025-01-15 08:00:00', '2025-01-15 09:30:00', 'FINALIZADO', 'Viaje completado sin incidencias'),
+(2, 2, 2, '2025-01-15 10:00:00', '2025-01-15 12:15:00', 'FINALIZADO', 'Retraso de 15 minutos por tráfico'),
+(3, 1, 3, '2025-01-15 14:00:00', '2025-01-15 15:45:00', 'FINALIZADO', 'Viaje normal'),
+(4, 2, 1, '2025-01-16 06:30:00', '2025-01-16 08:00:00', 'FINALIZADO', 'Salida puntual'),
+(5, 1, 4, '2025-01-16 09:00:00', '2025-01-16 11:30:00', 'FINALIZADO', 'Buen clima durante el viaje'),
+(1, 2, 2, '2025-01-16 13:00:00', '2025-01-16 15:20:00', 'EN_CURSO', 'En progreso'),
+(2, 1, 3, '2025-01-17 07:00:00', NULL, 'PROGRAMADO', 'Programado para mañana'),
+(3, 2, 1, '2025-01-17 10:00:00', NULL, 'PROGRAMADO', 'Pendiente de confirmación');

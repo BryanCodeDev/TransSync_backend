@@ -12,8 +12,25 @@ const register = async (req, res) => {
     const { nomUsuario, apeUsuario, numDocUsuario, telUsuario, email, password } = req.body;
     const idEmpresa = 1; // Empresa por defecto
 
-    if (!nomUsuario || !apeUsuario || !numDocUsuario || !telUsuario || !email || !password) {
-        return res.status(400).json({ msg: 'Todos los campos son obligatorios' });
+    // Validación de campos requeridos
+    const requiredFields = ['nomUsuario', 'apeUsuario', 'numDocUsuario', 'telUsuario', 'email', 'password'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+
+    if (missingFields.length > 0) {
+        return res.status(400).json({
+            message: `Campos requeridos faltantes: ${missingFields.join(', ')}`
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Formato de email inválido' });
+    }
+
+    // Validar contraseña segura (mínimo 6 caracteres)
+    if (password && password.length < 6) {
+        return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
     }
 
     const connection = await pool.getConnection();
@@ -186,16 +203,16 @@ const login = async (req, res) => {
         const user = rows[0];
 
         if (!user) {
-            return res.status(401).json({ message: "Credenciales incorrectas." });
+            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
         }
 
         if (!user.estActivo) {
-            return res.status(403).json({ message: "Cuenta desactivada. Verifica tu correo o contacta soporte." });
+            return res.status(403).json({ message: "Su cuenta no está activada. Por favor verifique su correo electrónico." });
         }
 
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
-            return res.status(401).json({ message: "Credenciales incorrectas." });
+            return res.status(401).json({ message: "Credenciales incorrectas. Verifique su email y contraseña." });
         }
 
         // Lógica para obtener nombre y apellido según rol
@@ -431,6 +448,229 @@ const resetPassword = async (req, res) => {
         res.status(400).json({ message: "Token inválido o expirado." });
     }
 };
+// LOGOUT
+const logout = async (req, res) => {
+    try {
+        // En una implementación más robusta, podrías invalidar el token en una blacklist
+        // Por ahora, solo devolvemos una respuesta exitosa
+        res.json({
+            success: true,
+            message: 'Sesión cerrada exitosamente'
+        });
+    } catch (error) {
+        console.error("Error en logout:", error);
+        res.status(500).json({ message: "Error al cerrar sesión." });
+    }
+};
+
+// OBTENER PERFIL DEL USUARIO
+const getProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const query = `
+            SELECT u.idUsuario, u.email, u.nomUsuario, u.apeUsuario, u.numDocUsuario, u.telUsuario,
+                   r.nomRol as rol, e.nomEmpresa
+            FROM Usuarios u
+            JOIN Roles r ON u.idRol = r.idRol
+            JOIN Empresas e ON u.idEmpresa = e.idEmpresa
+            WHERE u.idUsuario = ?
+        `;
+
+        const [rows] = await pool.query(query, [userId]);
+        const user = rows[0];
+
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user.idUsuario,
+                name: `${user.nomUsuario} ${user.apeUsuario}`.trim(),
+                email: user.email,
+                role: user.rol,
+                empresa: user.nomEmpresa,
+                idEmpresa: user.idEmpresa,
+                numDocUsuario: user.numDocUsuario,
+                telUsuario: user.telUsuario
+            }
+        });
+    } catch (error) {
+        console.error("Error al obtener perfil:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// VERIFICAR TOKEN
+const verifyToken = async (req, res) => {
+    try {
+        // El middleware ya verificó el token, solo devolvemos la información del usuario
+        const userId = req.user.id;
+
+        const query = `
+            SELECT u.idUsuario, u.email, u.nomUsuario, u.apeUsuario, u.numDocUsuario, u.telUsuario,
+                   r.nomRol as rol, e.nomEmpresa
+            FROM Usuarios u
+            JOIN Roles r ON u.idRol = r.idRol
+            JOIN Empresas e ON u.idEmpresa = e.idEmpresa
+            WHERE u.idUsuario = ?
+        `;
+
+        const [rows] = await pool.query(query, [userId]);
+        const user = rows[0];
+
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        res.json({
+            success: true,
+            valid: true,
+            user: {
+                id: user.idUsuario,
+                name: `${user.nomUsuario} ${user.apeUsuario}`.trim(),
+                email: user.email,
+                role: user.rol,
+                empresa: user.nomEmpresa,
+                idEmpresa: user.idEmpresa
+            }
+        });
+    } catch (error) {
+        console.error("Error al verificar token:", error);
+        res.status(401).json({ message: "Token inválido." });
+    }
+};
+
+// ACTUALIZAR PERFIL
+const updateProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { name, email } = req.body;
+
+        if (!name || !email) {
+            return res.status(400).json({ message: "Nombre y email son requeridos." });
+        }
+
+        if (!apiUtils.isValidEmail(email)) {
+            return res.status(400).json({ message: "Formato de email inválido." });
+        }
+
+        // Verificar si el email ya está en uso por otro usuario
+        const [existingUser] = await pool.query(
+            "SELECT idUsuario FROM Usuarios WHERE email = ? AND idUsuario != ?",
+            [email, userId]
+        );
+
+        if (existingUser.length > 0) {
+            return res.status(409).json({ message: "El email ya está en uso." });
+        }
+
+        // Actualizar perfil
+        const [result] = await pool.query(
+            "UPDATE Usuarios SET nomUsuario = ?, apeUsuario = ?, email = ? WHERE idUsuario = ?",
+            [name.split(' ')[0], name.split(' ').slice(1).join(' '), email, userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        res.json({
+            success: true,
+            message: "Perfil actualizado correctamente.",
+            user: {
+                id: userId,
+                name: name,
+                email: email
+            }
+        });
+    } catch (error) {
+        console.error("Error al actualizar perfil:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// CAMBIAR CONTRASEÑA
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "Todos los campos son requeridos." });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Las contraseñas no coinciden." });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: "La nueva contraseña debe tener al menos 6 caracteres." });
+        }
+
+        // Obtener contraseña actual del usuario
+        const [rows] = await pool.query(
+            "SELECT passwordHash FROM Usuarios WHERE idUsuario = ?",
+            [userId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, rows[0].passwordHash);
+        if (!isCurrentPasswordValid) {
+            return res.status(400).json({ message: "La contraseña actual es incorrecta." });
+        }
+
+        // Hash de la nueva contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Actualizar contraseña
+        const [result] = await pool.query(
+            "UPDATE Usuarios SET passwordHash = ? WHERE idUsuario = ?",
+            [hashedPassword, userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        res.json({
+            success: true,
+            message: "Contraseña actualizada correctamente."
+        });
+    } catch (error) {
+        console.error("Error al cambiar contraseña:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// HEALTH CHECK
+const healthCheck = async (req, res) => {
+    try {
+        // Verificar conexión a la base de datos
+        await pool.query("SELECT 1");
+
+        res.json({
+            status: "OK",
+            message: "Servidor funcionando correctamente",
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        });
+    } catch (error) {
+        console.error("Error en health check:", error);
+        res.status(503).json({
+            status: "ERROR",
+            message: "Problemas de conexión con la base de datos",
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
 // VALIDACION DE CONTRASEÑA SEGURA
 function esPasswordSegura(password) {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -443,5 +683,11 @@ module.exports = {
     verifyAccount,
     forgotPassword,
     resetPassword,
+    logout,
+    getProfile,
+    verifyToken,
+    updateProfile,
+    changePassword,
+    healthCheck,
     esPasswordSegura
 };

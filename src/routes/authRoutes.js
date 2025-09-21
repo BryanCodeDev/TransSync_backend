@@ -12,21 +12,13 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
 // Rutas protegidas
-router.get('/profile', authMiddleware, (req, res) => {
-    res.json({
-        success: true,
-        user: req.user,
-        message: 'Perfil obtenido correctamente'
-    });
-});
+router.post('/logout', authController.logout);
+router.get('/profile', authMiddleware, authController.getProfile);
+router.get('/verify-token', authMiddleware, authController.verifyToken);
+router.put('/profile', authMiddleware, authController.updateProfile);
+router.put('/change-password', authMiddleware, authController.changePassword);
 
-// Verificar token
-router.get('/verify-token', authMiddleware, (req, res) => {
-    res.json({
-        success: true,
-        valid: true,
-        user: req.user
-    });
-});
+// Health check
+router.get('/health', authController.healthCheck);
 
 module.exports = router;
