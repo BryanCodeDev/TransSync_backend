@@ -408,18 +408,17 @@ INSERT INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, 
 
 -- Insertar conductores para los usuarios conductores (10 conductores)
 INSERT INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, estConductor, idEmpresa) VALUES
-(5, 'B2', '2025-08-15', 'ACTIVO', 1),
-(6, 'C1', '2025-12-20', 'INACTIVO', 1),
-(8, 'B1', '2025-06-10', 'DIA_DESCANSO', 1),
-(9, 'B3', '2025-09-30', 'ACTIVO', 1),
-(5, 'C2', '2025-11-05', 'INCAPACITADO', 2),
-(6, 'B2', '2025-07-25', 'DE_VACACIONES', 2),
-(8, 'C1', '2025-10-18', 'ACTIVO', 2),
-(9, 'B1', '2025-05-12', 'ACTIVO', 3),
-(5, 'B3', '2025-08-22', 'ACTIVO', 3),
-(6, 'C2', '2025-09-08', 'ACTIVO', 3);
+(3, 'B2', '2025-08-15', 'ACTIVO', 1),
+(4, 'C1', '2025-12-20', 'INACTIVO', 1),
+(5, 'B1', '2025-06-10', 'DIA_DESCANSO', 1),
+(7, 'B3', '2025-09-30', 'ACTIVO', 1),
+(8, 'C2', '2025-11-05', 'INCAPACITADO', 2),
+(9, 'B2', '2025-07-25', 'DE_VACACIONES', 2),
+(10, 'C1', '2025-10-18', 'ACTIVO', 2),
+(11, 'B1', '2025-05-12', 'ACTIVO', 3),
+(12, 'B3', '2025-08-22', 'ACTIVO', 3);
 
--- Insertar vehículos (10 vehículos)
+-- Insertar vehículos (15 vehículos)
 INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) VALUES
 ('V006', 'PQR678', 'Ford', 'Ranger', 2021, '2025-07-14', '2025-09-18', 'EN_RUTA', 2),
 ('V007', 'STU901', 'Volkswagen', 'Gol', 2019, '2025-05-30', '2025-08-03', 'EN_MANTENIMIENTO', 2),
@@ -430,9 +429,14 @@ INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioV
 ('V012', 'HIJ456', 'Mercedes', 'C-Class', 2020, '2025-08-15', '2025-09-20', 'EN_MANTENIMIENTO', 1),
 ('V013', 'KLM789', 'Audi', 'A4', 2022, '2025-09-05', '2025-11-08', 'DISPONIBLE', 2),
 ('V014', 'NOP012', 'Peugeot', '3008', 2021, '2025-07-22', '2025-09-25', 'EN_RUTA', 2),
-('V015', 'QRS345', 'Citroën', 'C4', 2020, '2025-06-18', '2025-08-21', 'DISPONIBLE', 3);
+('V015', 'QRS345', 'Citroën', 'C4', 2020, '2025-06-18', '2025-08-21', 'DISPONIBLE', 3),
+('V016', 'TUV678', 'Toyota', 'Prius', 2022, '2025-10-15', '2025-12-20', 'DISPONIBLE', 1),
+('V017', 'WXY901', 'Nissan', 'Altima', 2021, '2025-08-10', '2025-10-15', 'EN_RUTA', 1),
+('V018', 'ZAB234', 'Mazda', 'CX-30', 2022, '2025-11-05', '2026-01-10', 'DISPONIBLE', 2),
+('V019', 'CDE567', 'Renault', 'Kwid', 2020, '2025-07-30', '2025-09-30', 'EN_MANTENIMIENTO', 2),
+('V020', 'FGH890', 'Chevrolet', 'Onix', 2021, '2025-09-20', '2025-11-25', 'DISPONIBLE', 3);
 
--- Insertar rutas (10 rutas)
+-- Insertar rutas (15 rutas)
 INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
 ('Ruta Cali-Buenaventura', 'Terminal Cali', 'Puerto Buenaventura', 2),
 ('Ruta Medellín-Cartagena', 'Terminal Norte Medellín', 'Terminal Cartagena', 2),
@@ -443,7 +447,12 @@ INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
 ('Ruta Cali-Popayán', 'Terminal Cali', 'Terminal Popayán', 2),
 ('Ruta Bucaramanga-Cúcuta', 'Terminal Bucaramanga', 'Terminal Cúcuta', 3),
 ('Ruta Pasto-Ipiales', 'Terminal Pasto', 'Terminal Ipiales', 3),
-('Ruta Armenia-Pereira', 'Terminal Armenia', 'Terminal Pereira', 1);
+('Ruta Armenia-Pereira', 'Terminal Armenia', 'Terminal Pereira', 1),
+('Ruta Neiva-Garzón', 'Terminal Neiva', 'Terminal Garzón', 1),
+('Ruta Yopal-Aguazul', 'Terminal Yopal', 'Terminal Aguazul', 2),
+('Ruta Sincelejo-Corozal', 'Terminal Sincelejo', 'Terminal Corozal', 3),
+('Ruta Florencia-Suaza', 'Terminal Florencia', 'Terminal Suaza', 1),
+('Ruta Tunja-Duitama', 'Terminal Tunja', 'Terminal Duitama', 2);
 
 -- Insertar interacciones del chatbot (10 ejemplos)
 INSERT INTO InteraccionesChatbot (mensaje, respuesta, intencion, idEmpresa, idUsuario, tiempoRespuesta, exitosa, valoracion, ipUsuario) VALUES
@@ -464,7 +473,7 @@ INSERT INTO ConfiguracionChatbot (idEmpresa, mensajeBienvenida, mensajeNoCompren
 (2, 'Bienvenido al asistente de Logística Andina. ¿Cómo puedo ayudarte con tus operaciones de transporte?', 'No logré comprender tu consulta. Intenta usar términos más específicos como "conductores", "vehículos" o "rutas".', '¡Hasta luego! Gracias por preferir Logística Andina.'),
 (3, '¡Hola! Soy el asistente de Carga Pesada. ¿Qué necesitas saber sobre tus vehículos de carga?', 'Perdón, no entendí tu pregunta. Prueba con consultas sobre "conductores", "mantenimiento" o "horarios".', '¡Gracias por tu consulta! Que tengas un buen viaje con Carga Pesada.');
 
--- Insertar respuestas predefinidas (10 ejemplos)
+-- Insertar respuestas predefinidas (15 ejemplos)
 INSERT INTO RespuestasPredefinidas (idEmpresa, palabrasClave, categoria, respuesta, prioridad, activa) VALUES
 (1, 'hola,saludos,buenos dias,buenas tardes,buenas noches', 'saludo', '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy?', 10, 1),
 (1, 'conductores,choferes,pilotos,disponibles,activos', 'conductores', 'Actualmente tenemos conductores activos: Pedro García, María López, Juan Hernández, Sofia Torres y Diego Ramírez.', 9, 1),
@@ -475,7 +484,12 @@ INSERT INTO RespuestasPredefinidas (idEmpresa, palabrasClave, categoria, respues
 (1, 'gracias,excelente,perfecto,buen trabajo,genial', 'despedida', '¡De nada! Siempre estoy aquí para ayudarte. ¡Que tengas un excelente día!', 6, 1),
 (1, 'mantenimiento,reparacion,taller,averiado,dañado', 'vehiculos', 'Para mantenimiento, contacta al taller autorizado. Actualmente tenemos 1 vehículo en mantenimiento (GHI789).', 8, 1),
 (1, 'emergencia,urgente,problema,critico,ayuda inmediata', 'ayuda', 'Para emergencias, llama inmediatamente al +57 300 123 4567 o contacta al supervisor de turno.', 10, 1),
-(1, 'horarios,salidas,arribos,tiempo,estimado', 'horarios', 'Los horarios varían por ruta. ¿Te gustaría consultar una ruta específica?', 7, 1);
+(1, 'horarios,salidas,arribos,tiempo,estimado', 'horarios', 'Los horarios varían por ruta. ¿Te gustaría consultar una ruta específica?', 7, 1),
+(1, 'perfil,cuenta,usuario,informacion personal', 'ayuda', 'Para gestionar tu perfil, ve a la sección "Mi Perfil" en el menú principal. Allí puedes editar tu información y cambiar tu contraseña.', 8, 1),
+(1, 'preferencias,configuracion,ajustes,opciones', 'ayuda', 'Puedes personalizar tus preferencias en la sección de configuración. Incluye tema, idioma, notificaciones y opciones del dashboard.', 7, 1),
+(1, 'notificaciones,alertas,avisos,mensajes', 'ayuda', 'Configura tus notificaciones en Preferencias > Notificaciones. Puedes elegir recibir emails, push o SMS.', 7, 1),
+(1, 'actividad,historial,registro,logs', 'ayuda', 'Tu historial de actividad está disponible en tu perfil. Muestra logins, cambios de contraseña y actualizaciones.', 6, 1),
+(1, 'empresa,compania,organizacion,negocio', 'ayuda', 'La información de tu empresa está disponible en tu perfil. Incluye datos de contacto y configuración empresarial.', 6, 1);
 
 -- =====================================================
 -- TABLAS PARA GESTIÓN DE PERFIL DE USUARIO
