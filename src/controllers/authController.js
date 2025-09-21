@@ -220,14 +220,11 @@ const login = async (req, res) => {
         let apellido = "";
 
         if (user.rol === "SUPERADMIN") {
-            nombre = user.nomAdministrador || "Super";
-            apellido = user.apeAdministrador || "Admin";
-        } else if (user.rol === "GESTOR") {
-            nombre = user.nomAdministrador || "Gestor";
-            apellido = user.apeAdministrador || "Usuario";
+            nombre = user.nomUsuario || "Super";
+            apellido = user.apeUsuario || "Admin";
         } else if (user.rol === "CONDUCTOR") {
-            nombre = user.nomConductor || "Conductor";
-            apellido = user.apeConductor || "Usuario";
+            nombre = user.nomUsuario || "Conductor";
+            apellido = user.apeUsuario || "Usuario";
         } else {
             nombre = user.nomUsuario || "Usuario";
             apellido = user.apeUsuario || "Pendiente";

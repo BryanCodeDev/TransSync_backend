@@ -180,7 +180,12 @@ app.get('/api/health', (req, res) => {
             'Intelligent Caching',
             'Conversation Memory',
             'Real-time Notifications',
-            'Connection Monitoring'
+            'Connection Monitoring',
+            'User Profile Management',
+            'User Preferences System',
+            'Notification Settings',
+            'User Activity Tracking',
+            'Account Status Monitoring'
         ]
     });
 });
@@ -202,6 +207,14 @@ app.get('/', (req, res) => {
             viajes: '/api/viajes',
             dashboard: '/api/dashboard',
             chatbot: '/api/chatbot',
+            user: {
+                profile: '/api/user/profile',
+                preferences: '/api/user/preferences',
+                notifications: '/api/user/notifications/settings',
+                company: '/api/user/company',
+                activity: '/api/user/activity',
+                accountStatus: '/api/user/account-status'
+            },
             websocket: {
                 stats: '/api/websocket/stats',
                 clients: '/api/websocket/clients'
@@ -257,6 +270,16 @@ app.use((req, res) => {
             'POST /api/auth/register',
             'GET /api/auth/verify',
             'GET /api/auth/profile',
+            'GET /api/user/profile',
+            'PUT /api/user/profile',
+            'PUT /api/user/change-password',
+            'GET /api/user/preferences',
+            'PUT /api/user/preferences',
+            'GET /api/user/notifications/settings',
+            'PUT /api/user/notifications/settings',
+            'GET /api/user/company',
+            'GET /api/user/activity',
+            'GET /api/user/account-status',
             'GET /api/websocket/stats',
             'GET /api/websocket/clients',
             'GET /api/realtime/stats',
