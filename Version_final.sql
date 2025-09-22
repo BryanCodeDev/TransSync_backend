@@ -740,4 +740,4 @@ UNION ALL
 SELECT
     'UserActivity',
     COUNT(*)
-FROM UserActivity;
+FROM UserActivity;

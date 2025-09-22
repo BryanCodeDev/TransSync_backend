@@ -261,6 +261,9 @@ WEBSOCKET_CORS_ORIGINS=http://localhost:3000,http://localhost:8081
 
 ### **6. Verificar Instalación**
 ```bash
+# Configurar base de datos (cross-platform)
+npm run db:setup
+
 # Iniciar el servidor
 npm run dev
 
@@ -270,6 +273,8 @@ curl http://localhost:5000/api/health
 # Verificar conexión a base de datos
 curl http://localhost:5000/api/health
 ```
+
+**⚠️ NOTA:** Se ha solucionado el problema de variables de entorno en Windows. Ahora usa un script cross-platform.
 
 ---
 
@@ -580,10 +585,12 @@ CHATBOT_CONFIDENCE_THRESHOLD=0.3    # Umbral de confianza
 ```bash
 npm run dev          # 🚀 Iniciar servidor en modo desarrollo (con nodemon)
 npm start            # 🚀 Iniciar servidor en modo producción
+npm run prod         # 🚀 Iniciar servidor en modo producción optimizado
 ```
 
 ### **Base de Datos:**
 ```bash
+npm run db:setup     # 🗄️ Configurar base de datos (cross-platform)
 npm run db:migrate   # 🗄️ Ejecutar migraciones de base de datos
 ```
 
@@ -612,6 +619,28 @@ curl http://localhost:5000/api/chatbot/health
 # Verificar conexión WebSocket
 curl http://localhost:5000/api/realtime/stats
 ```
+
+## 🚀 **Despliegue en Railway**
+
+### **Configuración Rápida:**
+1. **Conectar repositorio** a Railway
+2. **Configurar variables** en Railway dashboard:
+   ```bash
+   JWT_SECRET=tu-clave-secreta-muy-fuerte
+   JWT_REFRESH_SECRET=tu-clave-refresh-diferente
+   ALLOWED_ORIGINS=https://tu-frontend.com
+   ```
+3. **Railway** configura automáticamente:
+   - ✅ Base de datos MySQL
+   - ✅ Variables de entorno
+   - ✅ Health checks
+   - ✅ Archivos estáticos
+
+### **Documentación Completa:**
+Ver `RAILWAY-DEPLOYMENT.md` para instrucciones detalladas de despliegue en Railway.
+
+### **Configuración Local para Railway:**
+Ver `LOCAL-RAILWAY-SETUP.md` para probar configuraciones de Railway en local.
 
 ---
 

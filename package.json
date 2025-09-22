@@ -6,8 +6,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "db:migrate": "mysql -u root -p$DB_PASSWORD -h $DB_HOST -P $DB_PORT $DB_DATABASE < ./db/schema.sql",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prod": "NODE_ENV=production node server.js",
+    "db:migrate": "node scripts/db-setup.js migrate",
+    "db:setup": "node scripts/db-setup.js setup",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prestart": "npm run db:setup",
+    "build": "npm install --production",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",

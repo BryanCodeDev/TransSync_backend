@@ -51,7 +51,8 @@ const corsOptions = {
     // Permitir requests sin origen (como mobile apps o curl)
     if (!origin) return callback(null, true);
 
-    // Lista de orígenes permitidos
+    // Obtener orígenes permitidos desde variables de entorno
+    const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || process.env.WEBSOCKET_CORS_ORIGINS || '';
     const allowedOrigins = [
       'http://localhost:3000',        // Web app desarrollo
       'http://10.0.2.2:8081',         // Emulador Android con Expo
@@ -63,6 +64,16 @@ const corsOptions = {
       'https://www.transync.com',     // Dominio producción con www
       'https://api.transync.com',      // API en producción
     ];
+
+    // Agregar orígenes desde variables de entorno
+    if (allowedOriginsEnv) {
+      allowedOriginsEnv.split(',').forEach(origin => {
+        const cleanOrigin = origin.trim();
+        if (cleanOrigin && !allowedOrigins.includes(cleanOrigin)) {
+          allowedOrigins.push(cleanOrigin);
+        }
+      });
+    }
 
     // En desarrollo, permitir cualquier origen localhost
     if (process.env.NODE_ENV !== 'production') {
@@ -122,7 +133,8 @@ app.use((req, res, next) => {
 });
 
 // Middleware para logging de requests (deshabilitado por defecto para evitar spam)
-// if (process.env.NODE_ENV === 'development' || process.env.LOG_REQUESTS === 'true') {
+// Solo activar si es necesario para debugging específico
+// if (process.env.LOG_REQUESTS === 'true') {
 //   app.use((req, res, next) => {
 //     const timestamp = new Date().toISOString();
 //     const origin = req.get('origin') || req.get('referer') || 'No origin';
@@ -130,8 +142,8 @@ app.use((req, res, next) => {
 
 //     console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip} - Origin: ${origin} - UA: ${userAgent}`);
 
-//     // Log del body para POST/PUT (solo en desarrollo)
-//     if ((req.method === 'POST' || req.method === 'PUT') && process.env.NODE_ENV === 'development') {
+//     // Log del body para POST/PUT (solo si es necesario)
+//     if ((req.method === 'POST' || req.method === 'PUT') && process.env.LOG_REQUESTS === 'verbose') {
 //       console.log('Body:', JSON.stringify(req.body, null, 2));
 //     }
 
@@ -162,16 +174,46 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
 });
 
-// --- Health check endpoint ---
-app.get('/api/health', (req, res) => {
+// --- Health check endpoint optimizado para Railway ---
+app.get('/api/health', async (req, res) => {
     const realTimeStats = realTimeService.getConnectionStats();
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    res.json({
-        status: 'OK',
+    // Test de base de datos (solo en producción para health check completo)
+    let databaseStatus = 'Connected';
+    let databaseResponseTime = null;
+
+    if (isProduction) {
+        const dbStart = Date.now();
+        try {
+            const pool = require('./src/config/db');
+            const connection = await pool.getConnection();
+            await connection.ping();
+            connection.release();
+            databaseResponseTime = Date.now() - dbStart;
+            databaseStatus = 'Connected';
+        } catch (error) {
+            databaseStatus = 'Error';
+            console.error('Health check - Database error:', error.message);
+        }
+    }
+
+    const healthData = {
+        status: databaseStatus === 'Connected' ? 'OK' : 'ERROR',
         message: 'TranSync Backend API está funcionando',
         timestamp: new Date().toISOString(),
         version: '2.0.0',
-        database: 'Connected',
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime(),
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+            external: Math.round(process.memoryUsage().external / 1024 / 1024)
+        },
+        database: {
+            status: databaseStatus,
+            responseTime: databaseResponseTime ? `${databaseResponseTime}ms` : 'N/A'
+        },
         websocket: {
             enabled: true,
             connections: realTimeStats.totalConnections,
@@ -183,7 +225,6 @@ app.get('/api/health', (req, res) => {
             clientCount: realTimeStats.totalConnections,
             uptime: realTimeStats.uptime
         },
-        environment: process.env.NODE_ENV || 'development',
         features: [
             'REST API',
             'WebSocket Real-time',
@@ -200,7 +241,12 @@ app.get('/api/health', (req, res) => {
             'User Activity Tracking',
             'Account Status Monitoring'
         ]
-    });
+    };
+
+    // Determinar código de respuesta HTTP basado en el estado
+    const httpStatus = healthData.status === 'OK' ? 200 : 503;
+
+    res.status(httpStatus).json(healthData);
 });
 
 // --- Ruta raíz de bienvenida ---
@@ -335,6 +381,16 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📊 WebSocket: Habilitado con autenticación JWT`);
     console.log(`🔔 RealTimeService: Conexiones activas: ${realTimeService.getClientCount()}`);
+
+    // Solo mostrar logs adicionales en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+        console.log('');
+        console.log('📋 Logs de desarrollo:');
+        console.log('   - LOG_REQUESTS=true (para ver requests HTTP)');
+        console.log('   - LOG_REQUESTS=verbose (para ver body de requests)');
+        console.log('   - LOG_DATABASE=true (para ver queries SQL)');
+        console.log('');
+    }
 });
 
 // Exportar para testing

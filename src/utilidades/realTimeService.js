@@ -3,15 +3,31 @@ const { Server } = require('socket.io');
 
 class RealTimeService {
   constructor(server) {
+    // Configuración optimizada para Railway
+    const isProduction = process.env.NODE_ENV === 'production';
+    const corsOrigins = process.env.ALLOWED_ORIGINS || process.env.WEBSOCKET_CORS_ORIGINS || process.env.FRONTEND_URL || "http://localhost:3000";
+
     this.io = new Server(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
+        origin: isProduction ? corsOrigins.split(',') : true,
         methods: ["GET", "POST"],
         credentials: true
       },
       transports: ['websocket', 'polling'],
       pingTimeout: 60000,
-      pingInterval: 25000
+      pingInterval: 25000,
+      // Configuraciones específicas para Railway
+      allowEIO3: true, // Permitir Engine.IO v3
+      maxHttpBufferSize: 1e8, // 100 MB para evitar problemas con mensajes grandes
+      connectTimeout: 45000, // Timeout de conexión más largo
+      // Configuraciones de seguridad para producción
+      ...(isProduction && {
+        perMessageDeflate: false, // Desactivar compresión para evitar problemas
+        httpCompression: false,
+        forceNew: true,
+        upgradeTimeout: 10000,
+        destroyUpgradeTimeout: 10000
+      })
     });
 
     this.connectedClients = new Map();
