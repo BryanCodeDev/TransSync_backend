@@ -18,6 +18,9 @@ router.get('/verify-token', authMiddleware, authController.verifyToken);
 router.put('/profile', authMiddleware, authController.updateProfile);
 router.put('/change-password', authMiddleware, authController.changePassword);
 
+// Endpoint de refresh de token JWT
+router.post('/refresh', authController.refreshToken);
+
 // Health check
 router.get('/health', authController.healthCheck);
 

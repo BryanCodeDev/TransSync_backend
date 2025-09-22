@@ -750,6 +750,129 @@ const healthCheck = async (req, res) => {
     }
 };
 
+// REFRESH TOKEN JWT
+const refreshToken = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "NO_TOKEN",
+                    message: "Token de refresh requerido"
+                }
+            });
+        }
+
+        // Verificar el token de refresh
+        const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+
+        // Obtener información del usuario
+        const query = `
+            SELECT u.idUsuario, u.email, u.nomUsuario, u.apeUsuario, u.numDocUsuario, u.telUsuario,
+                   r.nomRol as rol, e.nomEmpresa
+            FROM Usuarios u
+            JOIN Roles r ON u.idRol = r.idRol
+            JOIN Empresas e ON u.idEmpresa = e.idEmpresa
+            WHERE u.idUsuario = ? AND u.estActivo = 1
+        `;
+
+        const [rows] = await pool.query(query, [decoded.id]);
+        const user = rows[0];
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: "USER_NOT_FOUND",
+                    message: "Usuario no encontrado o inactivo"
+                }
+            });
+        }
+
+        // Lógica para obtener nombre y apellido según rol
+        let nombre = "";
+        let apellido = "";
+
+        if (user.rol === "SUPERADMIN") {
+            nombre = user.nomUsuario || "Super";
+            apellido = user.apeUsuario || "Admin";
+        } else if (user.rol === "CONDUCTOR") {
+            nombre = user.nomUsuario || "Conductor";
+            apellido = user.apeUsuario || "Usuario";
+        } else {
+            nombre = user.nomUsuario || "Usuario";
+            apellido = user.apeUsuario || "Pendiente";
+        }
+
+        // Generar nuevo token de acceso
+        const newToken = jwt.sign(
+            {
+                id: user.idUsuario,
+                role: user.rol,
+                idEmpresa: user.idEmpresa,
+                empresa: user.nomEmpresa
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "8h" }
+        );
+
+        // Generar nuevo token de refresh
+        const newRefreshToken = jwt.sign(
+            { id: user.idUsuario },
+            process.env.JWT_REFRESH_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.json({
+            success: true,
+            token: newToken,
+            refreshToken: newRefreshToken,
+            user: {
+                id: user.idUsuario,
+                name: `${nombre} ${apellido}`.trim(),
+                email: user.email,
+                role: user.rol,
+                empresa: user.nomEmpresa,
+                idEmpresa: user.idEmpresa
+            },
+            expiresIn: "8h"
+        });
+
+    } catch (error) {
+        console.error("Error en refresh token:", error);
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                success: false,
+                error: {
+                    code: "INVALID_TOKEN",
+                    message: "Token de refresh inválido"
+                }
+            });
+        }
+
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({
+                success: false,
+                error: {
+                    code: "TOKEN_EXPIRED",
+                    message: "Token de refresh expirado"
+                }
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Error interno del servidor"
+            }
+        });
+    }
+};
+
 // VALIDACION DE CONTRASEÑA SEGURA
 function esPasswordSegura(password) {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -768,5 +891,6 @@ module.exports = {
     updateProfile,
     changePassword,
     healthCheck,
+    refreshToken,
     esPasswordSegura
 };

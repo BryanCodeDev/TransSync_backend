@@ -519,6 +519,144 @@ class RealTimeService {
     });
   }
 
+  // ===============================
+  // EVENTOS ESPECÍFICOS DEL NEGOCIO
+  // ===============================
+
+  /**
+   * Notificar creación de nuevo conductor
+   */
+  notifyConductorCreated(conductorData) {
+    const { idConductor, nomConductor, apeConductor, idEmpresa } = conductorData;
+
+    this.sendToEmpresa(idEmpresa, 'conductor:created', {
+      idConductor,
+      nomConductor,
+      apeConductor,
+      timestamp: new Date()
+    });
+
+    console.log(`👨‍💼 Conductor creado: ${nomConductor} ${apeConductor} (ID: ${idConductor})`);
+  }
+
+  /**
+   * Notificar actualización de vehículo
+   */
+  notifyVehiculoUpdated(vehiculoData) {
+    const { idVehiculo, plaVehiculo, estVehiculo, idEmpresa } = vehiculoData;
+
+    this.sendToEmpresa(idEmpresa, 'vehiculo:updated', {
+      idVehiculo,
+      plaVehiculo,
+      estVehiculo,
+      timestamp: new Date()
+    });
+
+    console.log(`🚗 Vehículo actualizado: ${plaVehiculo} - Estado: ${estVehiculo}`);
+  }
+
+  /**
+   * Notificar alerta de vencimiento
+   */
+  notifyVencimientoAlert(alertData) {
+    const { tipoDocumento, titular, fechaVencimiento, idEmpresa, prioridad = 'high' } = alertData;
+
+    this.sendToEmpresa(idEmpresa, 'vencimiento:alert', {
+      tipoDocumento,
+      titular,
+      fechaVencimiento,
+      prioridad,
+      timestamp: new Date()
+    });
+
+    console.log(`⚠️ Alerta de vencimiento: ${tipoDocumento} - ${titular} vence ${fechaVencimiento}`);
+  }
+
+  /**
+   * Notificar actualización de estadísticas del dashboard
+   */
+  notifyDashboardStatsUpdate(statsData) {
+    const { idEmpresa, totalVehiculos, vehiculosActivos } = statsData;
+
+    this.sendToEmpresa(idEmpresa, 'dashboard:stats:update', {
+      totalVehiculos,
+      vehiculosActivos,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * Notificar viaje iniciado
+   */
+  notifyViajeIniciado(viajeData) {
+    const { idViaje, idVehiculo, idConductor, idEmpresa } = viajeData;
+
+    this.sendToEmpresa(idEmpresa, 'viaje:iniciado', {
+      idViaje,
+      idVehiculo,
+      idConductor,
+      timestamp: new Date()
+    });
+
+    console.log(`🗺️ Viaje iniciado: ${idViaje} - Vehículo: ${idVehiculo}`);
+  }
+
+  /**
+   * Notificar viaje completado
+   */
+  notifyViajeCompletado(viajeData) {
+    const { idViaje, idVehiculo, idConductor, idEmpresa } = viajeData;
+
+    this.sendToEmpresa(idEmpresa, 'viaje:completado', {
+      idViaje,
+      idVehiculo,
+      idConductor,
+      timestamp: new Date()
+    });
+
+    console.log(`✅ Viaje completado: ${idViaje} - Vehículo: ${idVehiculo}`);
+  }
+
+  /**
+   * Notificar alerta crítica del sistema
+   */
+  notifySystemAlert(alertData) {
+    const { tipo, mensaje, prioridad = 'critical', idEmpresa } = alertData;
+
+    const targetType = idEmpresa ? 'empresa' : 'broadcast';
+    const targetId = idEmpresa || null;
+
+    this.sendNotification({
+      targetType,
+      targetId,
+      event: 'system:alert',
+      data: {
+        tipo,
+        mensaje,
+        prioridad
+      },
+      priority: prioridad
+    });
+
+    console.log(`🚨 Alerta del sistema: ${tipo} - ${mensaje}`);
+  }
+
+  /**
+   * Notificar mantenimiento programado
+   */
+  notifyMantenimientoProgramado(mantenimientoData) {
+    const { idVehiculo, tipoMantenimiento, fechaProgramada, idEmpresa } = mantenimientoData;
+
+    this.sendToEmpresa(idEmpresa, 'mantenimiento:programado', {
+      idVehiculo,
+      tipoMantenimiento,
+      fechaProgramada,
+      timestamp: new Date()
+    });
+
+    console.log(`🔧 Mantenimiento programado: Vehículo ${idVehiculo} - ${tipoMantenimiento}`);
+  }
+
   /**
    * Cerrar servicio
    */

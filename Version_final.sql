@@ -560,6 +560,127 @@ INSERT INTO UserActivity (idUsuario, type, description, ipAddress, userAgent) VA
 (3, 'login', 'Inicio de sesión exitoso', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'),
 (3, 'notifications_update', 'Actualización de configuración de notificaciones', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36');
 
+-- =====================================================
+-- TABLAS ADICIONALES PARA DASHBOARD Y NOTIFICACIONES
+-- =====================================================
+
+-- -----------------------------------------------------
+-- Tabla: dashboard_cache
+-- Almacena datos cacheados del dashboard para mejorar rendimiento
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS dashboard_cache (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tipo VARCHAR(50) NOT NULL COMMENT 'Tipo de datos cacheados: stats, realtime, alerts, charts',
+    datos JSON NOT NULL COMMENT 'Datos cacheados en formato JSON',
+    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL COMMENT 'Fecha de expiración del cache',
+    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_tipo_empresa (tipo, idEmpresa),
+    INDEX idx_expires_at (expires_at),
+    INDEX idx_last_accessed (last_accessed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Tabla: notifications
+-- Sistema de notificaciones para usuarios
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL COMMENT 'ID del usuario que recibe la notificación',
+    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
+    tipo VARCHAR(50) NOT NULL COMMENT 'Tipo: info, warning, error, success, system',
+    titulo VARCHAR(255) NOT NULL COMMENT 'Título de la notificación',
+    mensaje TEXT NOT NULL COMMENT 'Mensaje de la notificación',
+    datos_adicionales JSON NULL COMMENT 'Datos adicionales en formato JSON',
+    prioridad ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    leida BOOLEAN DEFAULT FALSE COMMENT 'Si la notificación fue leída',
+    reconocida BOOLEAN DEFAULT FALSE COMMENT 'Si la notificación fue reconocida',
+    fecha_lectura TIMESTAMP NULL COMMENT 'Fecha en que fue leída',
+    fecha_reconocimiento TIMESTAMP NULL COMMENT 'Fecha en que fue reconocida',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_user_id (user_id),
+    INDEX idx_empresa (idEmpresa),
+    INDEX idx_tipo (tipo),
+    INDEX idx_prioridad (prioridad),
+    INDEX idx_leida (leida),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Tabla: system_events
+-- Registro de eventos del sistema para auditoría
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS system_events (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
+    tipo_evento VARCHAR(100) NOT NULL COMMENT 'Tipo de evento: conductor_created, vehiculo_updated, etc.',
+    descripcion TEXT NOT NULL COMMENT 'Descripción del evento',
+    datos_evento JSON NULL COMMENT 'Datos del evento en formato JSON',
+    usuario_responsable INT NULL COMMENT 'ID del usuario que generó el evento',
+    ip_origen VARCHAR(45) NULL COMMENT 'IP de origen del evento',
+    user_agent VARCHAR(255) NULL COMMENT 'User agent del cliente',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_empresa (idEmpresa),
+    INDEX idx_tipo_evento (tipo_evento),
+    INDEX idx_usuario_responsable (usuario_responsable),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Tabla: user_sessions
+-- Control de sesiones de usuario para seguridad
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id VARCHAR(255) PRIMARY KEY COMMENT 'ID único de la sesión',
+    user_id INT NOT NULL COMMENT 'ID del usuario',
+    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
+    ip_address VARCHAR(45) NULL COMMENT 'IP del cliente',
+    user_agent TEXT NULL COMMENT 'User agent del navegador',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL COMMENT 'Fecha de expiración de la sesión',
+    is_active BOOLEAN DEFAULT TRUE COMMENT 'Si la sesión está activa',
+
+    INDEX idx_user_id (user_id),
+    INDEX idx_empresa (idEmpresa),
+    INDEX idx_expires_at (expires_at),
+    INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- DATOS DE PRUEBA PARA NUEVAS TABLAS
+-- =====================================================
+
+-- Insertar datos de prueba para dashboard_cache
+INSERT INTO dashboard_cache (tipo, datos, idEmpresa, expires_at) VALUES
+('stats', '{"totalVehiculos": 5, "totalConductores": 5, "totalRutas": 6, "viajesActivos": 1}', 1, DATE_ADD(NOW(), INTERVAL 1 HOUR)),
+('realtime', '{"viajesEnCurso": 1, "alertasCriticas": 0, "vehiculosActivos": 4}', 1, DATE_ADD(NOW(), INTERVAL 30 MINUTE)),
+('alerts', '{"alertasPendientes": 2, "alertasCriticas": 0, "alertasWarning": 2}', 1, DATE_ADD(NOW(), INTERVAL 15 MINUTE));
+
+-- Insertar notificaciones de prueba
+INSERT INTO notifications (user_id, idEmpresa, tipo, titulo, mensaje, prioridad, leida) VALUES
+(1, 1, 'info', 'Bienvenido al sistema', 'Tu cuenta ha sido configurada exitosamente', 'medium', FALSE),
+(1, 1, 'warning', 'SOAT próximo a vencer', 'El vehículo TSX123 tiene el SOAT próximo a vencer', 'high', FALSE),
+(1, 1, 'info', 'Mantenimiento completado', 'El vehículo YHG456 ha completado su mantenimiento', 'medium', TRUE),
+(2, 1, 'warning', 'Licencia próxima a vencer', 'La licencia del conductor Ana Gómez vence pronto', 'high', FALSE);
+
+-- Insertar eventos del sistema de prueba
+INSERT INTO system_events (idEmpresa, tipo_evento, descripcion, datos_evento, usuario_responsable) VALUES
+(1, 'conductor_created', 'Nuevo conductor registrado en el sistema', '{"idConductor": 1, "nomConductor": "Ana", "apeConductor": "Gómez"}', 1),
+(1, 'vehiculo_updated', 'Vehículo actualizado - cambio de estado', '{"idVehiculo": 2, "plaVehiculo": "YHG456", "estVehiculo": "EN_MANTENIMIENTO"}', 1),
+(1, 'viaje_iniciado', 'Nuevo viaje iniciado', '{"idViaje": 1, "idVehiculo": 1, "idConductor": 5}', 1),
+(1, 'viaje_completado', 'Viaje finalizado exitosamente', '{"idViaje": 4, "idVehiculo": 1, "idConductor": 1}', 1);
+
+-- Insertar sesiones de prueba
+INSERT INTO user_sessions (id, user_id, idEmpresa, ip_address, expires_at) VALUES
+('session_admin_001', 1, 1, '192.168.1.100', DATE_ADD(NOW(), INTERVAL 8 HOUR)),
+('session_gestor_001', 2, 1, '192.168.1.101', DATE_ADD(NOW(), INTERVAL 8 HOUR)),
+('session_gestor_002', 3, 1, '192.168.1.102', DATE_ADD(NOW(), INTERVAL 8 HOUR));
+
 -- Mostrar resumen de datos insertados
 SELECT
     'Empresas' as tabla,
