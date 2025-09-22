@@ -544,69 +544,14 @@ const verifyToken = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { nomUsuario, apeUsuario, email, telUsuario } = req.body;
+        const { name, email } = req.body;
 
-        // Validaciones básicas
-        if (!nomUsuario || !apeUsuario || !email || !telUsuario) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "VALIDATION_ERROR",
-                    message: "Todos los campos son requeridos",
-                    details: {
-                        nomUsuario: !nomUsuario ? "Nombre es requerido" : null,
-                        apeUsuario: !apeUsuario ? "Apellido es requerido" : null,
-                        email: !email ? "Email es requerido" : null,
-                        telUsuario: !telUsuario ? "Teléfono es requerido" : null
-                    }
-                }
-            });
+        if (!name || !email) {
+            return res.status(400).json({ message: "Nombre y email son requeridos." });
         }
 
-        // Validar formato de email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "INVALID_EMAIL",
-                    message: "Formato de email inválido"
-                }
-            });
-        }
-
-        // Validar teléfono
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        if (!phoneRegex.test(telUsuario.replace(/\s+/g, ''))) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "INVALID_PHONE",
-                    message: "Formato de teléfono inválido"
-                }
-            });
-        }
-
-        // Validar nombre y apellido (solo letras y espacios)
-        const nameRegex = /^[a-zA-ZÀ-ÿ\s]+$/;
-        if (!nameRegex.test(nomUsuario.trim())) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "INVALID_NAME_FORMAT",
-                    message: "El nombre solo puede contener letras y espacios"
-                }
-            });
-        }
-
-        if (!nameRegex.test(apeUsuario.trim())) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "INVALID_LASTNAME_FORMAT",
-                    message: "El apellido solo puede contener letras y espacios"
-                }
-            });
+        if (!apiUtils.isValidEmail(email)) {
+            return res.status(400).json({ message: "Formato de email inválido." });
         }
 
         // Verificar si el email ya está en uso por otro usuario
@@ -616,58 +561,31 @@ const updateProfile = async (req, res) => {
         );
 
         if (existingUser.length > 0) {
-            return res.status(409).json({
-                success: false,
-                error: {
-                    code: "EMAIL_ALREADY_EXISTS",
-                    message: "El email ya está en uso por otro usuario"
-                }
-            });
+            return res.status(409).json({ message: "El email ya está en uso." });
         }
 
         // Actualizar perfil
         const [result] = await pool.query(
-            `UPDATE Usuarios SET
-                nomUsuario = ?,
-                apeUsuario = ?,
-                email = ?,
-                telUsuario = ?,
-                fecUltModUsuario = CURRENT_TIMESTAMP
-            WHERE idUsuario = ? AND estActivo = 1`,
-            [nomUsuario.trim(), apeUsuario.trim(), email, telUsuario, userId]
+            "UPDATE Usuarios SET nomUsuario = ?, apeUsuario = ?, email = ? WHERE idUsuario = ?",
+            [name.split(' ')[0], name.split(' ').slice(1).join(' '), email, userId]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                error: {
-                    code: "USER_NOT_FOUND",
-                    message: "Usuario no encontrado"
-                }
-            });
+            return res.status(404).json({ message: "Usuario no encontrado." });
         }
 
         res.json({
             success: true,
-            message: "Perfil actualizado exitosamente",
-            data: {
-                idUsuario: userId,
-                nomUsuario: nomUsuario.trim(),
-                apeUsuario: apeUsuario.trim(),
-                email,
-                telUsuario,
-                fecUltModUsuario: new Date()
+            message: "Perfil actualizado correctamente.",
+            user: {
+                id: userId,
+                name: name,
+                email: email
             }
         });
     } catch (error) {
         console.error("Error al actualizar perfil:", error);
-        res.status(500).json({
-            success: false,
-            error: {
-                code: "INTERNAL_SERVER_ERROR",
-                message: "Error interno del servidor"
-            }
-        });
+        res.status(500).json({ message: "Error interno del servidor." });
     }
 };
 
@@ -750,129 +668,6 @@ const healthCheck = async (req, res) => {
     }
 };
 
-// REFRESH TOKEN JWT
-const refreshToken = async (req, res) => {
-    try {
-        const { token } = req.body;
-
-        if (!token) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    code: "NO_TOKEN",
-                    message: "Token de refresh requerido"
-                }
-            });
-        }
-
-        // Verificar el token de refresh
-        const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-
-        // Obtener información del usuario
-        const query = `
-            SELECT u.idUsuario, u.email, u.nomUsuario, u.apeUsuario, u.numDocUsuario, u.telUsuario,
-                   r.nomRol as rol, e.nomEmpresa
-            FROM Usuarios u
-            JOIN Roles r ON u.idRol = r.idRol
-            JOIN Empresas e ON u.idEmpresa = e.idEmpresa
-            WHERE u.idUsuario = ? AND u.estActivo = 1
-        `;
-
-        const [rows] = await pool.query(query, [decoded.id]);
-        const user = rows[0];
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: {
-                    code: "USER_NOT_FOUND",
-                    message: "Usuario no encontrado o inactivo"
-                }
-            });
-        }
-
-        // Lógica para obtener nombre y apellido según rol
-        let nombre = "";
-        let apellido = "";
-
-        if (user.rol === "SUPERADMIN") {
-            nombre = user.nomUsuario || "Super";
-            apellido = user.apeUsuario || "Admin";
-        } else if (user.rol === "CONDUCTOR") {
-            nombre = user.nomUsuario || "Conductor";
-            apellido = user.apeUsuario || "Usuario";
-        } else {
-            nombre = user.nomUsuario || "Usuario";
-            apellido = user.apeUsuario || "Pendiente";
-        }
-
-        // Generar nuevo token de acceso
-        const newToken = jwt.sign(
-            {
-                id: user.idUsuario,
-                role: user.rol,
-                idEmpresa: user.idEmpresa,
-                empresa: user.nomEmpresa
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: "8h" }
-        );
-
-        // Generar nuevo token de refresh
-        const newRefreshToken = jwt.sign(
-            { id: user.idUsuario },
-            process.env.JWT_REFRESH_SECRET,
-            { expiresIn: "7d" }
-        );
-
-        res.json({
-            success: true,
-            token: newToken,
-            refreshToken: newRefreshToken,
-            user: {
-                id: user.idUsuario,
-                name: `${nombre} ${apellido}`.trim(),
-                email: user.email,
-                role: user.rol,
-                empresa: user.nomEmpresa,
-                idEmpresa: user.idEmpresa
-            },
-            expiresIn: "8h"
-        });
-
-    } catch (error) {
-        console.error("Error en refresh token:", error);
-
-        if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({
-                success: false,
-                error: {
-                    code: "INVALID_TOKEN",
-                    message: "Token de refresh inválido"
-                }
-            });
-        }
-
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                error: {
-                    code: "TOKEN_EXPIRED",
-                    message: "Token de refresh expirado"
-                }
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            error: {
-                code: "INTERNAL_SERVER_ERROR",
-                message: "Error interno del servidor"
-            }
-        });
-    }
-};
-
 // VALIDACION DE CONTRASEÑA SEGURA
 function esPasswordSegura(password) {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -891,6 +686,5 @@ module.exports = {
     updateProfile,
     changePassword,
     healthCheck,
-    refreshToken,
     esPasswordSegura
 };

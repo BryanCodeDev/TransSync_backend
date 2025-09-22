@@ -13,51 +13,51 @@ router.use(authMiddleware);
 // RUTAS DEL DASHBOARD
 // ========================================
 
-// Estadísticas generales - Acceso SOLO para SUPERADMIN (dashboard admin)
-router.get("/estadisticas",
-    allowRoles("SUPERADMIN"),
+// Estadísticas generales - Acceso para ADMINISTRADOR y SUPERADMIN
+router.get("/estadisticas", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getGeneralStatistics
 );
 
 // Datos para gráficos con filtro por período
-router.get("/graficos",
-    allowRoles("SUPERADMIN"),
+router.get("/graficos", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getChartsData
 );
 
 // Alertas activas del sistema
-router.get("/alertas",
-    allowRoles("SUPERADMIN"),
+router.get("/alertas", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getActiveAlerts
 );
 
 // Actividad reciente del sistema
-router.get("/actividad",
-    allowRoles("SUPERADMIN"),
+router.get("/actividad", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getRecentActivity
 );
 
 // Indicadores clave de rendimiento (KPIs)
-router.get("/kpis",
-    allowRoles("SUPERADMIN"),
+router.get("/kpis", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getKPIs
 );
 
 // Resumen ejecutivo por período
-router.get("/resumen-ejecutivo",
-    allowRoles("SUPERADMIN"),
+router.get("/resumen-ejecutivo", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     dashboardController.getExecutiveSummary
 );
 
 // Datos en tiempo real
 router.get("/tiempo-real",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     dashboardController.getRealTimeData
 );
 
 // Control de actualizaciones automáticas del dashboard
 router.post("/start-updates",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -89,9 +89,8 @@ router.post("/start-updates",
     }
 );
 
-// Control de actualizaciones automáticas del dashboard
 router.post("/stop-updates",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -125,7 +124,7 @@ router.post("/stop-updates",
 
 // Obtener estadísticas de actualizaciones
 router.get("/update-stats",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             if (!global.dashboardRealTimeService) {
@@ -154,7 +153,7 @@ router.get("/update-stats",
 
 // Control de cache del dashboard
 router.post("/cache/clear",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -189,9 +188,8 @@ router.post("/cache/clear",
     }
 );
 
-// Control de cache del dashboard
 router.post("/cache/preload",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     async (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -227,7 +225,7 @@ router.post("/cache/preload",
 
 // Obtener estadísticas del cache del dashboard
 router.get("/cache/stats",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -264,7 +262,7 @@ router.get("/cache/stats",
 
 // Obtener estadísticas de eventos del dashboard
 router.get("/events/stats",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -301,7 +299,7 @@ router.get("/events/stats",
 
 // Obtener historial de eventos del dashboard
 router.get("/events/history",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -340,7 +338,7 @@ router.get("/events/history",
 
 // Emitir evento manual del dashboard
 router.post("/events/emit",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -384,7 +382,7 @@ router.post("/events/emit",
 
 // Forzar actualización de datos específicos del dashboard
 router.post("/force-update",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     async (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -446,7 +444,7 @@ router.post("/force-update",
 
 // Obtener configuración de actualizaciones automáticas
 router.get("/auto-update/config",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -488,7 +486,7 @@ router.get("/auto-update/config",
 
 // Obtener métricas de rendimiento del dashboard
 router.get("/performance",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -535,7 +533,7 @@ router.get("/performance",
 
 // Obtener estadísticas de notificaciones push
 router.get("/notifications/stats",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -572,7 +570,7 @@ router.get("/notifications/stats",
 
 // Obtener historial de notificaciones push
 router.get("/notifications/history",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -611,7 +609,7 @@ router.get("/notifications/history",
 
 // Marcar notificación como leída
 router.put("/notifications/:notificationId/read",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -654,7 +652,7 @@ router.put("/notifications/:notificationId/read",
 
 // Marcar notificación como reconocida
 router.put("/notifications/:notificationId/acknowledge",
-    allowRoles("SUPERADMIN"),
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"),
     (req, res) => {
         try {
             const idEmpresa = req.user.idEmpresa;
@@ -698,8 +696,8 @@ router.put("/notifications/:notificationId/acknowledge",
 // ========================================
 // RUTA DE PRUEBA PARA VERIFICAR CONECTIVIDAD
 // ========================================
-router.get("/test",
-    allowRoles("SUPERADMIN"),
+router.get("/test", 
+    allowRoles("SUPERADMIN", "ADMINISTRADOR"), 
     (req, res) => {
         res.json({
             status: 'success',

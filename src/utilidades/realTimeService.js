@@ -3,31 +3,15 @@ const { Server } = require('socket.io');
 
 class RealTimeService {
   constructor(server) {
-    // Configuración optimizada para Railway
-    const isProduction = process.env.NODE_ENV === 'production';
-    const corsOrigins = process.env.ALLOWED_ORIGINS || process.env.WEBSOCKET_CORS_ORIGINS || process.env.FRONTEND_URL || "http://localhost:3000";
-
     this.io = new Server(server, {
       cors: {
-        origin: isProduction ? corsOrigins.split(',') : true,
+        origin: process.env.FRONTEND_URL || "http://localhost:3000",
         methods: ["GET", "POST"],
         credentials: true
       },
       transports: ['websocket', 'polling'],
       pingTimeout: 60000,
-      pingInterval: 25000,
-      // Configuraciones específicas para Railway
-      allowEIO3: true, // Permitir Engine.IO v3
-      maxHttpBufferSize: 1e8, // 100 MB para evitar problemas con mensajes grandes
-      connectTimeout: 45000, // Timeout de conexión más largo
-      // Configuraciones de seguridad para producción
-      ...(isProduction && {
-        perMessageDeflate: false, // Desactivar compresión para evitar problemas
-        httpCompression: false,
-        forceNew: true,
-        upgradeTimeout: 10000,
-        destroyUpgradeTimeout: 10000
-      })
+      pingInterval: 25000
     });
 
     this.connectedClients = new Map();
@@ -533,144 +517,6 @@ class RealTimeService {
         console.error(`❌ Error en listener de evento ${event}:`, error);
       }
     });
-  }
-
-  // ===============================
-  // EVENTOS ESPECÍFICOS DEL NEGOCIO
-  // ===============================
-
-  /**
-   * Notificar creación de nuevo conductor
-   */
-  notifyConductorCreated(conductorData) {
-    const { idConductor, nomConductor, apeConductor, idEmpresa } = conductorData;
-
-    this.sendToEmpresa(idEmpresa, 'conductor:created', {
-      idConductor,
-      nomConductor,
-      apeConductor,
-      timestamp: new Date()
-    });
-
-    console.log(`👨‍💼 Conductor creado: ${nomConductor} ${apeConductor} (ID: ${idConductor})`);
-  }
-
-  /**
-   * Notificar actualización de vehículo
-   */
-  notifyVehiculoUpdated(vehiculoData) {
-    const { idVehiculo, plaVehiculo, estVehiculo, idEmpresa } = vehiculoData;
-
-    this.sendToEmpresa(idEmpresa, 'vehiculo:updated', {
-      idVehiculo,
-      plaVehiculo,
-      estVehiculo,
-      timestamp: new Date()
-    });
-
-    console.log(`🚗 Vehículo actualizado: ${plaVehiculo} - Estado: ${estVehiculo}`);
-  }
-
-  /**
-   * Notificar alerta de vencimiento
-   */
-  notifyVencimientoAlert(alertData) {
-    const { tipoDocumento, titular, fechaVencimiento, idEmpresa, prioridad = 'high' } = alertData;
-
-    this.sendToEmpresa(idEmpresa, 'vencimiento:alert', {
-      tipoDocumento,
-      titular,
-      fechaVencimiento,
-      prioridad,
-      timestamp: new Date()
-    });
-
-    console.log(`⚠️ Alerta de vencimiento: ${tipoDocumento} - ${titular} vence ${fechaVencimiento}`);
-  }
-
-  /**
-   * Notificar actualización de estadísticas del dashboard
-   */
-  notifyDashboardStatsUpdate(statsData) {
-    const { idEmpresa, totalVehiculos, vehiculosActivos } = statsData;
-
-    this.sendToEmpresa(idEmpresa, 'dashboard:stats:update', {
-      totalVehiculos,
-      vehiculosActivos,
-      timestamp: new Date()
-    });
-  }
-
-  /**
-   * Notificar viaje iniciado
-   */
-  notifyViajeIniciado(viajeData) {
-    const { idViaje, idVehiculo, idConductor, idEmpresa } = viajeData;
-
-    this.sendToEmpresa(idEmpresa, 'viaje:iniciado', {
-      idViaje,
-      idVehiculo,
-      idConductor,
-      timestamp: new Date()
-    });
-
-    console.log(`🗺️ Viaje iniciado: ${idViaje} - Vehículo: ${idVehiculo}`);
-  }
-
-  /**
-   * Notificar viaje completado
-   */
-  notifyViajeCompletado(viajeData) {
-    const { idViaje, idVehiculo, idConductor, idEmpresa } = viajeData;
-
-    this.sendToEmpresa(idEmpresa, 'viaje:completado', {
-      idViaje,
-      idVehiculo,
-      idConductor,
-      timestamp: new Date()
-    });
-
-    console.log(`✅ Viaje completado: ${idViaje} - Vehículo: ${idVehiculo}`);
-  }
-
-  /**
-   * Notificar alerta crítica del sistema
-   */
-  notifySystemAlert(alertData) {
-    const { tipo, mensaje, prioridad = 'critical', idEmpresa } = alertData;
-
-    const targetType = idEmpresa ? 'empresa' : 'broadcast';
-    const targetId = idEmpresa || null;
-
-    this.sendNotification({
-      targetType,
-      targetId,
-      event: 'system:alert',
-      data: {
-        tipo,
-        mensaje,
-        prioridad
-      },
-      priority: prioridad
-    });
-
-    console.log(`🚨 Alerta del sistema: ${tipo} - ${mensaje}`);
-  }
-
-  /**
-   * Notificar mantenimiento programado
-   */
-  notifyMantenimientoProgramado(mantenimientoData) {
-    const { idVehiculo, tipoMantenimiento, fechaProgramada, idEmpresa } = mantenimientoData;
-
-    this.sendToEmpresa(idEmpresa, 'mantenimiento:programado', {
-      idVehiculo,
-      tipoMantenimiento,
-      fechaProgramada,
-      timestamp: new Date()
-    });
-
-    console.log(`🔧 Mantenimiento programado: Vehículo ${idVehiculo} - ${tipoMantenimiento}`);
   }
 
   /**

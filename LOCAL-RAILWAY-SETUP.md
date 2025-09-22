@@ -141,7 +141,10 @@ npm run db:migrate # Migración (como root)
 ## 🌐 **URLs Locales**
 
 - **API:** http://localhost:5000
-- **Health Check:** http://localhost:5000/api/health
+- **Health Check General:** http://localhost:5000/api/health
+- **Health Check Conductores:** http://localhost:5000/api/conductores/health
+- **Health Check Vehículos:** http://localhost:5000/api/vehiculos/health
+- **Health Check Viajes:** http://localhost:5000/api/viajes/health
 - **WebSocket:** ws://localhost:5000
 - **Documentación:** http://localhost:5000/
 

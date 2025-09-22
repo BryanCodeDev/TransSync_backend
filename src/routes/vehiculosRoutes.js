@@ -13,64 +13,64 @@ router.get('/utils/select', vehiculosController.getVehiculosSelect);
 
 // IMPORTANT: Specific routes must come BEFORE generic parametrized routes
 
-// Obtener estadísticas de vehículos (GESTOR y SUPERADMIN)
-router.get('/estadisticas',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Obtener estadísticas de vehículos (ADMIN y SUPERADMIN)
+router.get('/estadisticas', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.getEstadisticasVehiculos
 );
 
-// Verificar vencimientos de documentos (GESTOR y SUPERADMIN)
-router.get('/vencimientos',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Verificar vencimientos de documentos (ADMIN y SUPERADMIN)
+router.get('/vencimientos', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.verificarVencimientosVehiculos
 );
 
-// Obtener todos los vehículos (GESTOR y SUPERADMIN)
-router.get('/',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Obtener todos los vehículos (ADMIN y SUPERADMIN)
+router.get('/', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.getVehiculos
 );
 
-// Crear nuevo vehículo (GESTOR y SUPERADMIN)
-router.post('/',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Crear nuevo vehículo (ADMIN y SUPERADMIN)
+router.post('/', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.crearVehiculo
 );
 
 // Generic parametrized routes should come AFTER specific routes
-// Obtener vehículo por ID (GESTOR y SUPERADMIN)
-router.get('/:id',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Obtener vehículo por ID (ADMIN y SUPERADMIN)
+router.get('/:id', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.getVehiculoById
 );
 
-// Actualizar vehículo (GESTOR y SUPERADMIN)
-router.put('/:id',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Actualizar vehículo (ADMIN y SUPERADMIN)
+router.put('/:id', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.actualizarVehiculo
 );
 
 // Eliminar vehículo (solo SUPERADMIN)
-router.delete('/:id',
-    allowRoles('SUPERADMIN'),
+router.delete('/:id', 
+    allowRoles('SUPERADMIN'), 
     vehiculosController.eliminarVehiculo
 );
 
-// Cambiar estado de vehículo (GESTOR y SUPERADMIN)
-router.patch('/:id/estado',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Cambiar estado de vehículo (ADMIN y SUPERADMIN)
+router.patch('/:id/estado', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.cambiarEstadoVehiculo
 );
 
-// Asignar conductor a vehículo (GESTOR y SUPERADMIN)
-router.patch('/:id/asignar-conductor',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Asignar conductor a vehículo (ADMIN y SUPERADMIN)
+router.patch('/:id/asignar-conductor', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.asignarConductorVehiculo
 );
 
-// Desasignar conductor de vehículo (GESTOR y SUPERADMIN)
-router.patch('/:id/desasignar-conductor',
-    allowRoles('GESTOR', 'SUPERADMIN'),
+// Desasignar conductor de vehículo (ADMIN y SUPERADMIN)
+router.patch('/:id/desasignar-conductor', 
+    allowRoles('ADMINISTRADOR', 'SUPERADMIN'), 
     vehiculosController.desasignarConductorVehiculo
 );
 
