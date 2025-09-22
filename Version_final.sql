@@ -12,6 +12,7 @@ USE transync;
 
 -- -----------------------------------------------------
 -- Tabla: Roles
+-- Tabla #1
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Roles (
     idRol INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS Roles (
 
 -- -----------------------------------------------------
 -- Tabla: Empresas
+-- Tabla #2
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Empresas (
     -- Identificador único de la Empresa.
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS Empresas (
 
 -- -----------------------------------------------------
 -- Tabla: Usuarios
+-- Tabla #3
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Usuarios (
     -- Identificador único del Usuario.
@@ -74,9 +77,28 @@ CREATE TABLE IF NOT EXISTS Usuarios (
     CONSTRAINT Fk_Usuarios_Empresas FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
 );
 
-
+-- -----------------------------------------------------
+-- Tabla: Gestores
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS  Gestores(
+    -- Identificador único del Gestor.
+    idGestor INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    -- Vínculo con sus credenciales en la tabla Usuarios.
+    idUsuario INT NOT NULL UNIQUE,
+    -- Identificador de la Empresa a la que pertenece.
+    idEmpresa INT NOT NULL,
+    -- Fecha de creación del registro.
+    fecCreGestor TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Unicidad por Gestor.
+    UNIQUE(idEmpresa, idUsuario),
+    -- Llave foránea: Si se borra una empresa, se borran sus perfiles de admin.
+    CONSTRAINT Fk_Gestores_Empresas FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE,
+    -- Llave foránea: Si se borra un usuario, se borra su perfil de admin.
+    CONSTRAINT Fk_Gestores_Usuarios FOREIGN KEY (idUsuario) REFERENCES Usuarios(idUsuario) ON DELETE CASCADE
+);
 -- -----------------------------------------------------
 -- Tabla: Conductores
+-- Tabla #4
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Conductores (
     -- Identificador único del Conductor.
@@ -105,6 +127,7 @@ CREATE TABLE IF NOT EXISTS Conductores (
 
 -- -----------------------------------------------------
 -- Tabla: Vehiculos
+-- Tabla #5
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Vehiculos (
     -- Identificador único del Vehículo.
@@ -143,6 +166,7 @@ CREATE TABLE IF NOT EXISTS Vehiculos (
 
 -- -----------------------------------------------------
 -- Tabla: Rutas
+-- Tabla #6
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Rutas (
     -- Identificador único de la Ruta.
@@ -163,6 +187,7 @@ CREATE TABLE IF NOT EXISTS Rutas (
 
 -- -----------------------------------------------------
 -- Tabla: Viajes
+-- Tabla #7
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS Viajes (
     -- Identificador único del Viaje.
@@ -195,6 +220,7 @@ CREATE TABLE IF NOT EXISTS Viajes (
 
 -- -----------------------------------------------------
 -- Tabla: InteraccionesChatbot
+-- Tabla #8
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS InteraccionesChatbot (
     -- Identificador único de la interacción
@@ -242,6 +268,7 @@ CREATE TABLE IF NOT EXISTS InteraccionesChatbot (
 
 -- -----------------------------------------------------
 -- Tabla: ConfiguracionChatbot (CORREGIDA)
+-- Tabla #9
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS ConfiguracionChatbot (
     -- Identificador único de configuración
@@ -280,6 +307,7 @@ CREATE TABLE IF NOT EXISTS ConfiguracionChatbot (
 
 -- -----------------------------------------------------
 -- Tabla: RespuestasPredefinidas
+-- Tabla #10
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS RespuestasPredefinidas (
     -- Identificador único de respuesta
@@ -314,164 +342,134 @@ CREATE TABLE IF NOT EXISTS RespuestasPredefinidas (
         FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
 );
 
+
+-- INSERCION DE DATOS INICIALES PARA LAS DIFERENTES TABLAS DEL SISTEMA EN ORDEN DE DEPENDENCIA.
+-- Tabla #1
 -- Insercion de datos en la tabla Roles.
 INSERT INTO Roles (nomRol) VALUES
 -- idRol 1.
 ('SUPERADMIN'),
--- idRol 2.
+-- idRol2.
+('GESTOR'),
+-- idRol 3.
 ('CONDUCTOR');
 
+-- Tabla #2
 INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa)
 VALUES
-    -- idEmpresa 1.
-    -- Nombre, nit, direccion, email y telefono de la Empresa.
-    ('Transporte La Sabana S.A.S', '900123456', 'Cra 45 # 12-34, Bogotá', 'contacto@lasabana.com', '3011234567');
+    -- idEmpresa = 1.
+    ('Expreso La Sabana S.A.S', '901234567', ' Dg. 23 #69 60, Bogotá', 'expresolasabana@gmail.com', '3021234567');
 
-
+-- Tabla #3
 -- Insercion de Usuarios.
 INSERT INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, passwordHash, idRol, idEmpresa, estActivo)
 VALUES
     -- Password: admin123
     -- Email, nombre(s), apellido(s), numero de documento, telefono, contraseña hash, idRol, idEmpresa y estadoActivo (0=False, 1=True) del Usuario.
+    -- idUsuario = 1.
     ('admintransync@gmail.com', 'Admin', 'TranSync', '1073155311', '3001234561', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe ', 1, 1, 1),
-    -- Password: admin124
-    ('adminrapidotolima@gmail.com', 'Admin', 'Tolima', '1073155312', '3001234562', '$2b$12$stgc03guikB1o2NBOXTYm.G96erg712on6tYgnFWBmJ6trgKjm9cC', 1, 1, 1);
+    -- GESTORES
+    -- Password: gestor123
+    -- idUsuario = 2.
+    ('juan.perez@example.com', 'Juan', 'Pérez', '1098765432', '3101234567', '$2b$12$3RUd9CYsTLw0Lp5J62nZ1.Xc4lMNT0dTkJ.vV2KphE4Ee5bZhv9iC', 2, 1, 1),
+    -- Password: gestor123
+    -- idUsuario = 3.
+    ('maria.lopez@example.com', 'María', 'López', '1122334455', '3102345678', '$2b$12$3RUd9CYsTLw0Lp5J62nZ1.Xc4lMNT0dTkJ.vV2KphE4Ee5bZhv9iC', 2, 1, 1),
+    -- Password: gestor123
+    -- idUsuario = 4.
+    ('carlos.martinez@example.com', 'Carlos', 'Martínez', '1234567890', '3103456789', '$2b$12$3RUd9CYsTLw0Lp5J62nZ1.Xc4lMNT0dTkJ.vV2KphE4Ee5bZhv9iC', 2, 1, 1),
+    -- CONDUCTORES
+    -- Password: conductor123
+    -- idUsuario = 5.
+    ('ana.gomez@example.com', 'Ana', 'Gómez', '1010101010', '3201234567', '$2b$12$3eQPBzwtFe5a6KZbpydMEufd7fPBGgAeI7UVJkz9cCHxS07LWlBeC', 3, 1, 1),
+    -- Password: conductor123
+    -- idUsuario = 6.
+    ('luis.fernandez@example.com', 'Luis', 'Fernández', '2020202020', '3202345678', '$2b$12$3eQPBzwtFe5a6KZbpydMEufd7fPBGgAeI7UVJkz9cCHxS07LWlBeC', 3, 1, 1),
+    -- Password: conductor123
+    -- idUsuario = 7.
+    ('maria.rios@example.com', 'María', 'Ríos', '3030303030', '3203456789', '$2b$12$3eQPBzwtFe5a6KZbpydMEufd7fPBGgAeI7UVJkz9cCHxS07LWlBeC', 3, 1, 1),
+    -- Password: conductor123
+    -- idUsuario = 8.
+    ('jorge.sanchez@example.com', 'Jorge', 'Sánchez', '4040404040', '3204567890', '$2b$12$3eQPBzwtFe5a6KZbpydMEufd7fPBGgAeI7UVJkz9cCHxS07LWlBeC', 3, 1, 1),
+    -- Password: conductor123
+    -- idUsuario = 9.
+    ('isabel.moreno@example.com', 'Isabel', 'Moreno', '5050505050', '3205678901', '$2b$12$3eQPBzwtFe5a6KZbpydMEufd7fPBGgAeI7UVJkz9cCHxS07LWlBeC', 3, 1, 1);
 
-
+-- Tabla #4
 -- Insertar conductores de ejemplo
 INSERT INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, estConductor, idEmpresa)
 VALUES
         -- idUsuario, tipo de licencia, fecha de vencimiento de la licencia, estado del Conductor y Empresa a la que pertencece de momento solo existe una empresa 1.
-        (1,'B1','2026-05-15', 'ACTIVO', 1),
-        (2,'B2','2027-09-01', 'DIA_DESCANSO', 1);
+        (5,'B1','2026-05-15', 'ACTIVO', 1),
+        (6,'C1','2025-09-23', 'INACTIVO', 1),
+        (7,'B3','2028-06-10', 'DIA_DESCANSO', 1),
+        (8,'C2','2027-01-08', 'INCAPACITADO', 1),
+        (9,'B1','2025-09-15', 'DE_VACACIONES', 1);
 
+-- Tabla #5
 -- Insertar rutas de ejemplo
-INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
-('Ruta Norte-Centro', 'Terminal Norte Bogotá', 'Centro Internacional Bogotá', 1),
-('Expreso Medellín-Rionegro', 'Terminal Sur Medellín', 'Aeropuerto José María Córdova', 1),
-('Ruta Sur-Chapinero', 'Terminal Sur Bogotá', 'Zona Rosa Chapinero', 1),
-('Ruta Envigado-Centro', 'Envigado', 'Centro Medellín', 1),
-('Ruta Centro-Occidente', 'Centro Bogotá', 'Terminal de Transportes', 1),
-('Ruta Norte-Sur', 'Portal Norte', 'Portal Sur', 1);
+INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) 
+VALUES
+    ('Ruta Norte-Centro', 'Terminal Norte Bogotá', 'Centro Internacional Bogotá', 1),
+    ('Expreso Medellín-Rionegro', 'Terminal Sur Medellín', 'Aeropuerto José María Córdova', 1),
+    ('Ruta Sur-Chapinero', 'Terminal Sur Bogotá', 'Zona Rosa Chapinero', 1),
+    ('Ruta Envigado-Centro', 'Envigado', 'Centro Medellín', 1),
+    ('Ruta Centro-Occidente', 'Centro Bogotá', 'Terminal de Transportes', 1),
+    ('Ruta Norte-Sur', 'Portal Norte', 'Portal Sur', 1);
 
 -- Insertar vehículos de ejemplo
-INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) VALUES
-('V001', 'ABC123', 'Chevrolet', 'Spark GT', 2020, '2025-06-15', '2025-08-20', 'DISPONIBLE', 1),
-('V002', 'DEF456', 'Renault', 'Logan', 2019, '2025-03-10', '2025-05-15', 'EN_RUTA', 1),
-('V003', 'GHI789', 'Toyota', 'Corolla', 2021, '2025-09-25', '2025-11-30', 'EN_MANTENIMIENTO', 1),
-('V004', 'JKL012', 'Nissan', 'Sentra', 2020, '2025-04-18', '2025-06-22', 'DISPONIBLE', 1),
-('V005', 'MNO345', 'Mazda', 'CX-5', 2022, '2025-12-01', '2026-02-05', 'DISPONIBLE', 1);
+INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) 
+VALUES
+    -- idVehiculo = 1.
+    ('BUS001', 'TSX123', 'Chevrolet', 'NPR Busetón', 2021, '2025-12-10', '2026-01-15', 'EN_RUTA', 1),
+    -- idVehiculo = 2.
+    ('BUS002', 'YHG456', 'Mercedes-Benz', 'OF 1721', 2020, '2025-10-05', '2025-12-12', 'EN_MANTENIMIENTO', 1),
+    -- idVehiculo = 3.
+    ('BUS003', 'PLM789', 'Hino', 'FC9J', 2022, '2025-11-25', '2026-01-30', 'FUERA_DE_SERVICIO', 1),
+    -- idVehiculo = 4.
+    ('BUS004', 'QWE012', 'Volkswagen', '9.160 OD Minibús', 2019, '2025-09-18', '2025-11-22', 'DISPONIBLE', 1),
+    -- idVehiculo = 5.
+    ('BUS005', 'RTY345', 'International', '4700 Serie', 2023, '2026-02-01', '2026-04-05', 'DISPONIBLE', 1);
+
 
 -- Insertar viajes de ejemplo
-INSERT INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje) VALUES
-(1, 1, 1, '2025-01-15 08:00:00', '2025-01-15 09:30:00', 'FINALIZADO', 'Viaje completado sin incidencias'),
-(2, 2, 2, '2025-01-15 10:00:00', '2025-01-15 12:15:00', 'FINALIZADO', 'Retraso de 15 minutos por tráfico'),
-(3, 1, 3, '2025-01-15 14:00:00', '2025-01-15 15:45:00', 'FINALIZADO', 'Viaje normal'),
-(4, 2, 1, '2025-01-16 06:30:00', '2025-01-16 08:00:00', 'FINALIZADO', 'Salida puntual'),
-(5, 1, 4, '2025-01-16 09:00:00', '2025-01-16 11:30:00', 'FINALIZADO', 'Buen clima durante el viaje'),
-(1, 2, 2, '2025-01-16 13:00:00', '2025-01-16 15:20:00', 'EN_CURSO', 'En progreso'),
-(2, 1, 3, '2025-01-17 07:00:00', NULL, 'PROGRAMADO', 'Programado para mañana'),
-(3, 2, 1, '2025-01-17 10:00:00', NULL, 'PROGRAMADO', 'Pendiente de confirmación'),
-(4, 1, 5, '2025-01-17 14:00:00', NULL, 'PROGRAMADO', 'Espera confirmación del cliente'),
-(5, 2, 6, '2025-01-18 08:00:00', NULL, 'PROGRAMADO', 'Ruta de fin de semana');
+INSERT INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje) 
+VALUES
+    -- Viaje 1
+(1, 5, 1, '2025-09-22 08:00:00', '2025-09-22 09:00:00', 'EN_CURSO', 'Viaje de prueba con conductor activo'),
 
--- =====================================================
--- DATOS DE PRUEBA ADICIONALES PARA DASHBOARD VIVO
--- =====================================================
+-- Viaje 2
+(5, 1, 2, '2025-09-22 06:30:00', '2025-09-22 08:00:00', 'PROGRAMADO', 'Programado para mañana temprano'),
 
--- Insertar más empresas para pruebas
-INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa) VALUES
-('Transportes del Valle S.A.S', '901234567', 'Calle 10 # 5-23, Cali', 'contacto@transportesvalle.com', '3021234567'),
-('Logística Andina Ltda', '902345678', 'Av. Circunvalar # 45-67, Medellín', 'info@logisticaandina.com', '3042345678'),
-('Carga Pesada S.A.', '903456789', 'Km 5 Vía Bogotá-Girardot', 'operaciones@cargapesada.com', '3053456789'),
-('Express Norte S.A.S', '904567890', 'Terminal de Carga, Bucaramanga', 'contacto@expressnorte.com', '3064567890'),
-('Transporte Centro S.A.', '905678901', 'Zona Industrial, Barranquilla', 'info@transcentro.com', '3075678901'),
-('Rápido del Sur Ltda', '906789012', 'Av. Las Américas # 12-34, Pasto', 'contacto@rapidosur.com', '3086789012'),
-('Logística Integral S.A.S', '907890123', 'Parque Industrial, Cúcuta', 'operaciones@logistica.com', '3097890123'),
-('Transporte Moderno Ltda', '908901234', 'Centro Logístico, Pereira', 'info@transportemoderno.com', '3108901234'),
-('Carga Express S.A.', '909012345', 'Terminal Sur, Manizales', 'contacto@cargaexpress.com', '3119012345'),
-('Logística Nacional S.A.S', '910123456', 'Zona Franca, Yumbo', 'info@logisticacional.com', '3120123456');
+-- Viaje 3
+(4, 5, 3, '2025-09-22 10:00:00', '2025-09-22 11:30:00', 'PROGRAMADO', 'Ruta Chapinero - revisión necesaria'),
 
--- Insertar más usuarios para pruebas (10 usuarios)
-INSERT INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, passwordHash, idRol, idEmpresa, estActivo) VALUES
-('conductor3@transync.com', 'Pedro', 'García', '1234567892', '3003333333', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor4@transync.com', 'María', 'López', '1234567893', '3004444444', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor5@transync.com', 'Juan', 'Hernández', '1234567894', '3005555555', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('admin1@transync.com', 'Roberto', 'Sánchez', '1234567895', '3006666666', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 1, 1, 1),
-('conductor6@transync.com', 'Diego', 'Ramírez', '1234567897', '3008888888', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor7@transync.com', 'Sofia', 'Torres', '1234567898', '3009999999', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor8@transync.com', 'Carlos', 'Rodríguez', '1234567890', '3001111111', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor9@transync.com', 'Ana', 'Martínez', '1234567891', '3002222222', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor10@transync.com', 'Laura', 'González', '1234567896', '3007777777', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1),
-('conductor11@transync.com', 'Miguel', 'Vargas', '1234567899', '3010000000', '$2b$12$GcePXxkduhLRPWMBrpzaTuzEIfdUAnrxo9.1MWImSHwdQ21IzovLe', 2, 1, 1);
+-- Viaje 4
+(1, 1, 4, '2025-09-21 15:00:00', '2025-09-21 16:30:00', 'FINALIZADO', 'Viaje completado sin novedades'),
 
+-- Viaje 5
+(5, 5, 5, '2025-09-23 07:00:00', '2025-09-23 08:30:00', 'PROGRAMADO', 'Asignado al BUS005 con licencia activa'),
 
--- Insertar conductores para los usuarios conductores (10 conductores)
-INSERT INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, estConductor, idEmpresa) VALUES
-(3, 'B2', '2025-08-15', 'ACTIVO', 1),
-(4, 'C1', '2025-12-20', 'INACTIVO', 1),
-(5, 'B1', '2025-06-10', 'DIA_DESCANSO', 1),
-(7, 'B3', '2025-09-30', 'ACTIVO', 1),
-(8, 'C2', '2025-11-05', 'INCAPACITADO', 2),
-(9, 'B2', '2025-07-25', 'DE_VACACIONES', 2),
-(10, 'C1', '2025-10-18', 'ACTIVO', 2),
-(11, 'B1', '2025-05-12', 'ACTIVO', 3),
-(12, 'B3', '2025-08-22', 'ACTIVO', 3);
-
--- Insertar vehículos (15 vehículos)
-INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) VALUES
-('V006', 'PQR678', 'Ford', 'Ranger', 2021, '2025-07-14', '2025-09-18', 'EN_RUTA', 2),
-('V007', 'STU901', 'Volkswagen', 'Gol', 2019, '2025-05-30', '2025-08-03', 'EN_MANTENIMIENTO', 2),
-('V008', 'VWX234', 'Hyundai', 'Tucson', 2022, '2025-11-12', '2026-01-16', 'DISPONIBLE', 2),
-('V009', 'YZA567', 'Kia', 'Sportage', 2020, '2025-08-28', '2025-10-31', 'DISPONIBLE', 3),
-('V010', 'BCD890', 'Honda', 'Civic', 2021, '2025-06-20', '2025-08-25', 'EN_RUTA', 3),
-('V011', 'EFG123', 'BMW', 'X3', 2021, '2025-12-01', '2026-01-10', 'DISPONIBLE', 1),
-('V012', 'HIJ456', 'Mercedes', 'C-Class', 2020, '2025-08-15', '2025-09-20', 'EN_MANTENIMIENTO', 1),
-('V013', 'KLM789', 'Audi', 'A4', 2022, '2025-09-05', '2025-11-08', 'DISPONIBLE', 2),
-('V014', 'NOP012', 'Peugeot', '3008', 2021, '2025-07-22', '2025-09-25', 'EN_RUTA', 2),
-('V015', 'QRS345', 'Citroën', 'C4', 2020, '2025-06-18', '2025-08-21', 'DISPONIBLE', 3),
-('V016', 'TUV678', 'Toyota', 'Prius', 2022, '2025-10-15', '2025-12-20', 'DISPONIBLE', 1),
-('V017', 'WXY901', 'Nissan', 'Altima', 2021, '2025-08-10', '2025-10-15', 'EN_RUTA', 1),
-('V018', 'ZAB234', 'Mazda', 'CX-30', 2022, '2025-11-05', '2026-01-10', 'DISPONIBLE', 2),
-('V019', 'CDE567', 'Renault', 'Kwid', 2020, '2025-07-30', '2025-09-30', 'EN_MANTENIMIENTO', 2),
-('V020', 'FGH890', 'Chevrolet', 'Onix', 2021, '2025-09-20', '2025-11-25', 'DISPONIBLE', 3);
-
--- Insertar rutas (15 rutas)
-INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) VALUES
-('Ruta Cali-Buenaventura', 'Terminal Cali', 'Puerto Buenaventura', 2),
-('Ruta Medellín-Cartagena', 'Terminal Norte Medellín', 'Terminal Cartagena', 2),
-('Ruta Barranquilla-Santa Marta', 'Terminal Barranquilla', 'Terminal Santa Marta', 3),
-('Ruta Pereira-Manizales', 'Terminal Pereira', 'Terminal Manizales', 3),
-('Ruta Bogotá-Ibagué', 'Terminal Salitre Bogotá', 'Terminal Ibagué', 1),
-('Ruta Medellín-Bogotá', 'Terminal Norte Medellín', 'Terminal Salitre Bogotá', 2),
-('Ruta Cali-Popayán', 'Terminal Cali', 'Terminal Popayán', 2),
-('Ruta Bucaramanga-Cúcuta', 'Terminal Bucaramanga', 'Terminal Cúcuta', 3),
-('Ruta Pasto-Ipiales', 'Terminal Pasto', 'Terminal Ipiales', 3),
-('Ruta Armenia-Pereira', 'Terminal Armenia', 'Terminal Pereira', 1),
-('Ruta Neiva-Garzón', 'Terminal Neiva', 'Terminal Garzón', 1),
-('Ruta Yopal-Aguazul', 'Terminal Yopal', 'Terminal Aguazul', 2),
-('Ruta Sincelejo-Corozal', 'Terminal Sincelejo', 'Terminal Corozal', 3),
-('Ruta Florencia-Suaza', 'Terminal Florencia', 'Terminal Suaza', 1),
-('Ruta Tunja-Duitama', 'Terminal Tunja', 'Terminal Duitama', 2);
+-- Viaje 6
+(4, 1, 6, '2025-09-23 14:00:00', '2025-09-23 15:45:00', 'PROGRAMADO', 'Ruta completa Norte-Sur');
 
 -- Insertar interacciones del chatbot (10 ejemplos)
-INSERT INTO InteraccionesChatbot (mensaje, respuesta, intencion, idEmpresa, idUsuario, tiempoRespuesta, exitosa, valoracion, ipUsuario) VALUES
-('Hola, ¿cómo estás?', '¡Hola! Soy tu asistente de TransSync. ¿En qué puedo ayudarte hoy?', 'saludo', 1, 1, 120, 1, 5, '192.168.1.100'),
-('¿Cuáles son los conductores disponibles?', 'Actualmente tenemos 3 conductores activos: Pedro García, María López y Juan Hernández.', 'conductores', 1, 2, 85, 1, 4, '192.168.1.101'),
-('¿Dónde está el vehículo ABC123?', 'El vehículo ABC123 (Chevrolet Spark GT) está actualmente DISPONIBLE en la terminal.', 'vehiculos', 1, 1, 150, 1, 5, '192.168.1.102'),
-('¿Hay rutas disponibles para mañana?', 'Sí, tenemos varias rutas programadas para mañana. ¿Te gustaría ver el horario completo?', 'rutas', 1, 3, 95, 1, 4, '192.168.1.103'),
-('Necesito un reporte de viajes', 'Puedo generar un reporte de viajes. ¿Qué período te interesa? (día, semana, mes)', 'reportes', 1, 1, 200, 1, 5, '192.168.1.104'),
-('¿Cómo cambio mi contraseña?', 'Para cambiar tu contraseña, ve a Configuración > Perfil > Cambiar contraseña.', 'ayuda', 1, 2, 110, 1, 3, '192.168.1.105'),
-('Gracias por tu ayuda', '¡De nada! Siempre estoy aquí para ayudarte. ¡Que tengas un excelente día!', 'despedida', 1, 1, 75, 1, 5, '192.168.1.106'),
-('No entiendo esta función', 'Lo siento, no pude entender tu consulta. ¿Puedes reformularla o ser más específico?', 'personalizada', 1, 3, 90, 0, 2, '192.168.1.107'),
-('¿Cuántos vehículos tenemos?', 'Actualmente la flota cuenta con 5 vehículos activos en el sistema.', 'vehiculos', 1, 1, 130, 1, 4, '192.168.1.108'),
-('¿Hay algún problema con el sistema?', 'El sistema está funcionando correctamente. ¿Hay algo específico que te preocupa?', 'ayuda', 1, 2, 140, 1, 4, '192.168.1.109');
+INSERT INTO InteraccionesChatbot (mensaje, respuesta, intencion, idEmpresa, idUsuario, tiempoRespuesta, exitosa, valoracion, ipUsuario) 
+VALUES
+    ('Hola, ¿cómo estás?', '¡Hola! Soy tu asistente de TransSync. ¿En qué puedo ayudarte hoy?', 'saludo', 1, 1, 120, 1, 5, '192.168.1.100'),
+    ('¿Cuáles son los conductores disponibles?', 'Actualmente tenemos 3 conductores activos: Pedro García, María López y Juan Hernández.', 'conductores', 1, 2, 85, 1, 4, '192.168.1.101'),
+    ('¿Dónde está el vehículo ABC123?', 'El vehículo ABC123 (Chevrolet Spark GT) está actualmente DISPONIBLE en la terminal.', 'vehiculos', 1, 1, 150, 1, 5, '192.168.1.102'),
+    ('¿Hay rutas disponibles para mañana?', 'Sí, tenemos varias rutas programadas para mañana. ¿Te gustaría ver el horario completo?', 'rutas', 1, 3, 95, 1, 4, '192.168.1.103'),
+    ('Necesito un reporte de viajes', 'Puedo generar un reporte de viajes. ¿Qué período te interesa? (día, semana, mes)', 'reportes', 1, 1, 200, 1, 5, '192.168.1.104'),
+    ('¿Cómo cambio mi contraseña?', 'Para cambiar tu contraseña, ve a Configuración > Perfil > Cambiar contraseña.', 'ayuda', 1, 2, 110, 1, 3, '192.168.1.105'),
+    ('Gracias por tu ayuda', '¡De nada! Siempre estoy aquí para ayudarte. ¡Que tengas un excelente día!', 'despedida', 1, 1, 75, 1, 5, '192.168.1.106'),
+    ('No entiendo esta función', 'Lo siento, no pude entender tu consulta. ¿Puedes reformularla o ser más específico?', 'personalizada', 1, 3, 90, 0, 2, '192.168.1.107'),
+    ('¿Cuántos vehículos tenemos?', 'Actualmente la flota cuenta con 5 vehículos activos en el sistema.', 'vehiculos', 1, 1, 130, 1, 4, '192.168.1.108'),
+    ('¿Hay algún problema con el sistema?', 'El sistema está funcionando correctamente. ¿Hay algo específico que te preocupa?', 'ayuda', 1, 2, 140, 1, 4, '192.168.1.109');
 
 -- Insertar configuración del chatbot (para cada empresa)
 INSERT INTO ConfiguracionChatbot (idEmpresa, mensajeBienvenida, mensajeNoComprendido, mensajeDespedida) VALUES
-(1, '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy con tu flota de transporte?', 'Lo siento, no pude entender tu consulta. ¿Puedes ser más específico o reformular tu pregunta?', '¡Gracias por usar TransSync! Que tengas un excelente día.'),
-(2, 'Bienvenido al asistente de Logística Andina. ¿Cómo puedo ayudarte con tus operaciones de transporte?', 'No logré comprender tu consulta. Intenta usar términos más específicos como "conductores", "vehículos" o "rutas".', '¡Hasta luego! Gracias por preferir Logística Andina.'),
-(3, '¡Hola! Soy el asistente de Carga Pesada. ¿Qué necesitas saber sobre tus vehículos de carga?', 'Perdón, no entendí tu pregunta. Prueba con consultas sobre "conductores", "mantenimiento" o "horarios".', '¡Gracias por tu consulta! Que tengas un buen viaje con Carga Pesada.');
+(1, '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy con tu flota de transporte?', 'Lo siento, no pude entender tu consulta. ¿Puedes ser más específico o reformular tu pregunta?', '¡Gracias por usar TransSync! Que tengas un excelente día.');
 
 -- Insertar respuestas predefinidas (15 ejemplos)
 INSERT INTO RespuestasPredefinidas (idEmpresa, palabrasClave, categoria, respuesta, prioridad, activa) VALUES
@@ -621,4 +619,4 @@ UNION ALL
 SELECT
     'UserActivity',
     COUNT(*)
-FROM UserActivity;
+FROM UserActivity;

@@ -1,10 +1,10 @@
 // src/controllers/websocketController.js
 const pool = require('../config/db');
-const WebSocketService = require('../services/websocketService');
+const RealTimeService = require('../utilidades/realTimeService');
 
 class WebSocketController {
-  constructor(io) {
-    this.wsService = new WebSocketService(io);
+  constructor(realTimeService) {
+    this.realTimeService = realTimeService;
   }
 
   // ===============================
@@ -14,7 +14,16 @@ class WebSocketController {
   // Llamar después de crear un conductor
   async notifyNewConductor(conductorData) {
     try {
-      await this.wsService.notifyNewConductor(conductorData, conductorData.idEmpresa);
+      const notification = {
+        type: 'conductor_nuevo',
+        title: '👨‍💼 Nuevo Conductor Registrado',
+        message: `Se ha registrado el conductor ${conductorData.nomConductor} ${conductorData.apeConductor}`,
+        data: conductorData,
+        timestamp: new Date(),
+        priority: 'medium'
+      };
+
+      await this.realTimeService.sendToEmpresa(conductorData.idEmpresa, 'conductor:created', notification);
       console.log('✅ Notificación de nuevo conductor enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de conductor:', error);
@@ -24,7 +33,16 @@ class WebSocketController {
   // Llamar después de crear un vehículo
   async notifyNewVehicle(vehicleData) {
     try {
-      await this.wsService.notifyNewVehicle(vehicleData, vehicleData.idEmpresa);
+      const notification = {
+        type: 'vehiculo_nuevo',
+        title: '🚗 Nuevo Vehículo Registrado',
+        message: `Se ha registrado el vehículo ${vehicleData.marVehiculo} ${vehicleData.modVehiculo} (${vehicleData.plaVehiculo})`,
+        data: vehicleData,
+        timestamp: new Date(),
+        priority: 'medium'
+      };
+
+      await this.realTimeService.sendToEmpresa(vehicleData.idEmpresa, 'vehiculo:created', notification);
       console.log('✅ Notificación de nuevo vehículo enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de vehículo:', error);
@@ -34,7 +52,16 @@ class WebSocketController {
   // Llamar después de crear una ruta
   async notifyNewRoute(routeData) {
     try {
-      await this.wsService.notifyNewRoute(routeData, routeData.idEmpresa);
+      const notification = {
+        type: 'ruta_nueva',
+        title: '🗺️ Nueva Ruta Registrada',
+        message: `Se ha registrado la ruta "${routeData.nomRuta}"`,
+        data: routeData,
+        timestamp: new Date(),
+        priority: 'low'
+      };
+
+      await this.realTimeService.sendToEmpresa(routeData.idEmpresa, 'ruta:created', notification);
       console.log('✅ Notificación de nueva ruta enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de ruta:', error);
@@ -52,7 +79,17 @@ class WebSocketController {
 
       if (vehicleResponse[0].length > 0) {
         const empresaId = vehicleResponse[0][0].idEmpresa;
-        await this.wsService.notifyNewTrip(tripData, empresaId);
+
+        const notification = {
+          type: 'viaje_nuevo',
+          title: '⏰ Nuevo Viaje Programado',
+          message: `Se programó un nuevo viaje para la ruta ${tripData.nomRuta || 'sin nombre'}`,
+          data: tripData,
+          timestamp: new Date(),
+          priority: 'medium'
+        };
+
+        await this.realTimeService.sendToEmpresa(empresaId, 'viaje:created', notification);
         console.log('✅ Notificación de nuevo viaje enviada');
       }
     } catch (error) {
@@ -103,7 +140,16 @@ class WebSocketController {
       // Enviar alertas para cada vencimiento
       for (const expiration of expirations) {
         if (expiration.diasParaVencer <= 7) { // Solo alertas críticas
-          await this.wsService.notifyExpirationAlert(expiration, expiration.idEmpresa);
+          const notification = {
+            type: 'vencimiento_alerta',
+            title: '⚠️ Alerta de Vencimiento',
+            message: `Documento próximo a vencer: ${expiration.tipoDocumento} - ${expiration.titular}`,
+            data: expiration,
+            timestamp: new Date(),
+            priority: 'high'
+          };
+
+          await this.realTimeService.sendToEmpresa(expiration.idEmpresa, 'vencimiento:alert', notification);
         }
       }
 
@@ -119,11 +165,11 @@ class WebSocketController {
   // ===============================
 
   getConnectionStats() {
-    return this.wsService.getConnectionStats();
+    return this.realTimeService.getConnectionStats();
   }
 
   getConnectedClients() {
-    return this.wsService.getConnectedClients();
+    return this.realTimeService.getConnectedClients();
   }
 }
 

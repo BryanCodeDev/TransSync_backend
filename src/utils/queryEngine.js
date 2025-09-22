@@ -17,6 +17,11 @@ class QueryEngine {
             // Determinar tabla principal basada en intención
             const mainTable = this.determineMainTable(intent);
 
+            // Caso especial para system_status - genera múltiples consultas
+            if (intent === 'system_status') {
+                return this.generateSystemStatusQuery(idEmpresa);
+            }
+
             if (!mainTable) {
                 return {
                     sql: null,
@@ -75,7 +80,7 @@ class QueryEngine {
             list_vehicle: 'Vehiculos',
             list_route: 'Rutas',
             list_schedule: 'Viajes',
-            system_status: 'Conductores', // Requiere JOIN con múltiples tablas
+            system_status: null, // Estado general - no usa tabla principal, genera consultas múltiples
             license_expiry: 'Conductores',
             vehicle_maintenance: 'Vehiculos'
         };
@@ -497,6 +502,29 @@ class QueryEngine {
                     'idViaje', 'fecHorSalViaje', 'estViaje', 'idVehiculo', 'idRuta'
                 ]
             }
+        };
+    }
+
+    /**
+     * Generar consulta especial para estado del sistema
+     */
+    generateSystemStatusQuery(idEmpresa) {
+        // Para system_status, necesitamos múltiples consultas agregadas
+        // Simulamos una tabla virtual con los datos necesarios
+        const sql = `
+            SELECT
+                (SELECT COUNT(*) FROM Conductores WHERE estConductor = 'ACTIVO' AND idEmpresa = ?) as conductoresActivos,
+                (SELECT COUNT(*) FROM Vehiculos WHERE estVehiculo = 'DISPONIBLE' AND idEmpresa = ?) as vehiculosDisponibles,
+                (SELECT COUNT(*) FROM Viajes WHERE estViaje = 'EN_CURSO') as viajesEnCurso
+        `;
+
+        return {
+            sql: sql,
+            params: [idEmpresa, idEmpresa],
+            complexity: 2,
+            explanation: 'Obteniendo estado general del sistema con múltiples consultas agregadas',
+            estimatedRows: 1,
+            isMultipleQuery: true
         };
     }
 

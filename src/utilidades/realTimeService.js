@@ -1,6 +1,5 @@
 // src/utilidades/realTimeService.js - Servicio de Notificaciones en Tiempo Real para Backend
 const { Server } = require('socket.io');
-const WebSocketService = require('../services/websocketService');
 
 class RealTimeService {
   constructor(server) {
@@ -15,7 +14,6 @@ class RealTimeService {
       pingInterval: 25000
     });
 
-    this.websocketService = new WebSocketService(this.io);
     this.connectedClients = new Map();
     this.eventListeners = new Map();
     this.notificationQueue = [];
