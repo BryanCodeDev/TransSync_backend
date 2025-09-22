@@ -107,8 +107,19 @@ const updateProfile = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: {
-                    code: "VALIDATION_ERROR",
+                    code: "INVALID_EMAIL",
                     message: "Formato de email inválido"
+                }
+            });
+        }
+
+        // Validar longitud de email
+        if (email.length > 80) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "EMAIL_TOO_LONG",
+                    message: "El email no puede exceder 80 caracteres"
                 }
             });
         }
@@ -119,8 +130,62 @@ const updateProfile = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: {
-                    code: "VALIDATION_ERROR",
+                    code: "INVALID_PHONE",
                     message: "Formato de teléfono inválido"
+                }
+            });
+        }
+
+        // Validar longitud de teléfono
+        if (telUsuario.replace(/\s+/g, '').length < 7 || telUsuario.replace(/\s+/g, '').length > 16) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_PHONE_LENGTH",
+                    message: "El teléfono debe tener entre 7 y 16 dígitos"
+                }
+            });
+        }
+
+        // Validar nombre y apellido
+        if (nomUsuario.trim().length < 2 || nomUsuario.trim().length > 80) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_NAME_LENGTH",
+                    message: "El nombre debe tener entre 2 y 80 caracteres"
+                }
+            });
+        }
+
+        if (apeUsuario.trim().length < 2 || apeUsuario.trim().length > 80) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_LASTNAME_LENGTH",
+                    message: "El apellido debe tener entre 2 y 80 caracteres"
+                }
+            });
+        }
+
+        // Validar que solo contengan letras y espacios
+        const nameRegex = /^[a-zA-ZÀ-ÿ\s]+$/;
+        if (!nameRegex.test(nomUsuario.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_NAME_FORMAT",
+                    message: "El nombre solo puede contener letras y espacios"
+                }
+            });
+        }
+
+        if (!nameRegex.test(apeUsuario.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_LASTNAME_FORMAT",
+                    message: "El apellido solo puede contener letras y espacios"
                 }
             });
         }
@@ -150,7 +215,7 @@ const updateProfile = async (req, res) => {
                 telUsuario = ?,
                 fecUltModUsuario = CURRENT_TIMESTAMP
             WHERE idUsuario = ? AND estActivo = 1`,
-            [nomUsuario, apeUsuario, email, telUsuario, userId]
+            [nomUsuario.trim(), apeUsuario.trim(), email, telUsuario, userId]
         );
 
         if (result.affectedRows === 0) {
@@ -175,8 +240,8 @@ const updateProfile = async (req, res) => {
             message: "Perfil actualizado exitosamente",
             data: {
                 idUsuario: userId,
-                nomUsuario,
-                apeUsuario,
+                nomUsuario: nomUsuario.trim(),
+                apeUsuario: apeUsuario.trim(),
                 email,
                 telUsuario,
                 fecUltModUsuario: new Date()

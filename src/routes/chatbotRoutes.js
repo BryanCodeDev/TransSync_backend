@@ -20,20 +20,20 @@ router.post('/consulta', chatbotController.procesarConsulta);
 /**
  * GET /api/chatbot/estadisticas
  * Obtener estadísticas de uso del chatbot
- * Acceso: Solo administradores
+ * Acceso: GESTOR y SUPERADMIN
  */
-router.get('/estadisticas', 
-    require('../middleware/roleMiddleware')('ADMINISTRADOR', 'SUPERADMIN'), 
+router.get('/estadisticas',
+    require('../middleware/roleMiddleware')('GESTOR', 'SUPERADMIN'),
     chatbotController.getEstadisticasChatbot
 );
 
 /**
  * POST /api/chatbot/query
  * Ejecutar consultas SQL directas (solo SELECT)
- * Acceso: Solo administradores
+ * Acceso: GESTOR y SUPERADMIN
  */
 router.post('/query',
-    require('../middleware/roleMiddleware')('ADMINISTRADOR', 'SUPERADMIN'),
+    require('../middleware/roleMiddleware')('GESTOR', 'SUPERADMIN'),
     async (req, res) => {
         try {
             const { sql, params = [] } = req.body;
@@ -71,10 +71,10 @@ router.post('/query',
 /**
  * GET /api/chatbot/cache/stats
  * Obtener estadísticas del sistema de cache
- * Acceso: Solo administradores
+ * Acceso: GESTOR y SUPERADMIN
  */
 router.get('/cache/stats',
-    require('../middleware/roleMiddleware')('ADMINISTRADOR', 'SUPERADMIN'),
+    require('../middleware/roleMiddleware')('GESTOR', 'SUPERADMIN'),
     (req, res) => {
         try {
             const stats = cacheService.getPerformanceStats();
@@ -95,10 +95,10 @@ router.get('/cache/stats',
 /**
  * POST /api/chatbot/cache/clear
  * Limpiar cache del sistema
- * Acceso: Solo administradores
+ * Acceso: GESTOR y SUPERADMIN
  */
 router.post('/cache/clear',
-    require('../middleware/roleMiddleware')('ADMINISTRADOR', 'SUPERADMIN'),
+    require('../middleware/roleMiddleware')('GESTOR', 'SUPERADMIN'),
     (req, res) => {
         try {
             cacheService.clearAll();

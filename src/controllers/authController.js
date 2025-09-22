@@ -544,14 +544,69 @@ const verifyToken = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { name, email } = req.body;
+        const { nomUsuario, apeUsuario, email, telUsuario } = req.body;
 
-        if (!name || !email) {
-            return res.status(400).json({ message: "Nombre y email son requeridos." });
+        // Validaciones básicas
+        if (!nomUsuario || !apeUsuario || !email || !telUsuario) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "VALIDATION_ERROR",
+                    message: "Todos los campos son requeridos",
+                    details: {
+                        nomUsuario: !nomUsuario ? "Nombre es requerido" : null,
+                        apeUsuario: !apeUsuario ? "Apellido es requerido" : null,
+                        email: !email ? "Email es requerido" : null,
+                        telUsuario: !telUsuario ? "Teléfono es requerido" : null
+                    }
+                }
+            });
         }
 
-        if (!apiUtils.isValidEmail(email)) {
-            return res.status(400).json({ message: "Formato de email inválido." });
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_EMAIL",
+                    message: "Formato de email inválido"
+                }
+            });
+        }
+
+        // Validar teléfono
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(telUsuario.replace(/\s+/g, ''))) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_PHONE",
+                    message: "Formato de teléfono inválido"
+                }
+            });
+        }
+
+        // Validar nombre y apellido (solo letras y espacios)
+        const nameRegex = /^[a-zA-ZÀ-ÿ\s]+$/;
+        if (!nameRegex.test(nomUsuario.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_NAME_FORMAT",
+                    message: "El nombre solo puede contener letras y espacios"
+                }
+            });
+        }
+
+        if (!nameRegex.test(apeUsuario.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: "INVALID_LASTNAME_FORMAT",
+                    message: "El apellido solo puede contener letras y espacios"
+                }
+            });
         }
 
         // Verificar si el email ya está en uso por otro usuario
@@ -561,31 +616,58 @@ const updateProfile = async (req, res) => {
         );
 
         if (existingUser.length > 0) {
-            return res.status(409).json({ message: "El email ya está en uso." });
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: "EMAIL_ALREADY_EXISTS",
+                    message: "El email ya está en uso por otro usuario"
+                }
+            });
         }
 
         // Actualizar perfil
         const [result] = await pool.query(
-            "UPDATE Usuarios SET nomUsuario = ?, apeUsuario = ?, email = ? WHERE idUsuario = ?",
-            [name.split(' ')[0], name.split(' ').slice(1).join(' '), email, userId]
+            `UPDATE Usuarios SET
+                nomUsuario = ?,
+                apeUsuario = ?,
+                email = ?,
+                telUsuario = ?,
+                fecUltModUsuario = CURRENT_TIMESTAMP
+            WHERE idUsuario = ? AND estActivo = 1`,
+            [nomUsuario.trim(), apeUsuario.trim(), email, telUsuario, userId]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Usuario no encontrado." });
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: "USER_NOT_FOUND",
+                    message: "Usuario no encontrado"
+                }
+            });
         }
 
         res.json({
             success: true,
-            message: "Perfil actualizado correctamente.",
-            user: {
-                id: userId,
-                name: name,
-                email: email
+            message: "Perfil actualizado exitosamente",
+            data: {
+                idUsuario: userId,
+                nomUsuario: nomUsuario.trim(),
+                apeUsuario: apeUsuario.trim(),
+                email,
+                telUsuario,
+                fecUltModUsuario: new Date()
             }
         });
     } catch (error) {
         console.error("Error al actualizar perfil:", error);
-        res.status(500).json({ message: "Error interno del servidor." });
+        res.status(500).json({
+            success: false,
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Error interno del servidor"
+            }
+        });
     }
 };
 

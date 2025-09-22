@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS RespuestasPredefinidas (
 INSERT INTO Roles (nomRol) VALUES
 -- idRol 1.
 ('SUPERADMIN'),
--- idRol2.
+-- idRol 2.
 ('GESTOR'),
 -- idRol 3.
 ('CONDUCTOR');

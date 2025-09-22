@@ -180,22 +180,58 @@ const crearVehiculo = async (req, res) => {
 
     // Validaciones básicas
     if (!numVehiculo || !plaVehiculo || !marVehiculo || !modVehiculo || !anioVehiculo || !fecVenSOAT || !fecVenTec) {
-        return res.status(400).json({ 
-            message: 'Número interno, placa, marca, modelo, año, fecha de vencimiento SOAT y fecha de vencimiento técnica son requeridos.' 
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: 'VALIDATION_ERROR',
+                message: 'Todos los campos requeridos deben ser completados.',
+                details: {
+                    numVehiculo: !numVehiculo ? 'Número interno es requerido' : null,
+                    plaVehiculo: !plaVehiculo ? 'Placa es requerida' : null,
+                    marVehiculo: !marVehiculo ? 'Marca es requerida' : null,
+                    modVehiculo: !modVehiculo ? 'Modelo es requerido' : null,
+                    anioVehiculo: !anioVehiculo ? 'Año es requerido' : null,
+                    fecVenSOAT: !fecVenSOAT ? 'Fecha de vencimiento SOAT es requerida' : null,
+                    fecVenTec: !fecVenTec ? 'Fecha de vencimiento técnica es requerida' : null
+                }
+            }
         });
     }
 
     // Validar estado
     const validStates = ['DISPONIBLE', 'EN_RUTA', 'EN_MANTENIMIENTO', 'FUERA_DE_SERVICIO'];
     if (!validStates.includes(estVehiculo)) {
-        return res.status(400).json({ message: 'Estado de vehículo inválido.' });
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: 'INVALID_STATE',
+                message: 'Estado de vehículo inválido.',
+                details: `Estado debe ser uno de: ${validStates.join(', ')}`
+            }
+        });
     }
 
     // Validar año
     const currentYear = new Date().getFullYear();
     if (anioVehiculo < 1950 || anioVehiculo > currentYear + 1) {
-        return res.status(400).json({ 
-            message: `El año debe estar entre 1950 y ${currentYear + 1}` 
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: 'INVALID_YEAR',
+                message: `El año debe estar entre 1950 y ${currentYear + 1}`
+            }
+        });
+    }
+
+    // Validar placa (formato básico)
+    const placaRegex = /^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$/i;
+    if (!placaRegex.test(plaVehiculo.trim())) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: 'INVALID_PLATE',
+                message: 'Formato de placa inválido. Debe ser como ABC123 o ABC12D'
+            }
         });
     }
 
@@ -212,8 +248,12 @@ const crearVehiculo = async (req, res) => {
 
         if (existingPlaca.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ 
-                message: 'Ya existe un vehículo con esa placa.' 
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: 'PLATE_EXISTS',
+                    message: 'Ya existe un vehículo con esa placa.'
+                }
             });
         }
 
@@ -225,8 +265,12 @@ const crearVehiculo = async (req, res) => {
 
         if (existingNum.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ 
-                message: 'Ya existe un vehículo con ese número interno en la empresa.' 
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: 'VEHICLE_NUMBER_EXISTS',
+                    message: 'Ya existe un vehículo con ese número interno en la empresa.'
+                }
             });
         }
 
@@ -234,18 +278,26 @@ const crearVehiculo = async (req, res) => {
         const fechaSOAT = new Date(fecVenSOAT);
         const fechaTec = new Date(fecVenTec);
         const hoy = new Date();
-        
+
         if (fechaSOAT <= hoy) {
             await connection.rollback();
-            return res.status(400).json({ 
-                message: 'La fecha de vencimiento del SOAT debe ser futura.' 
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_SOAT_DATE',
+                    message: 'La fecha de vencimiento del SOAT debe ser futura.'
+                }
             });
         }
 
         if (fechaTec <= hoy) {
             await connection.rollback();
-            return res.status(400).json({ 
-                message: 'La fecha de vencimiento de la revisión técnica debe ser futura.' 
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_TECHNICAL_DATE',
+                    message: 'La fecha de vencimiento de la revisión técnica debe ser futura.'
+                }
             });
         }
 
@@ -258,8 +310,12 @@ const crearVehiculo = async (req, res) => {
 
             if (conductor.length === 0) {
                 await connection.rollback();
-                return res.status(400).json({ 
-                    message: 'El conductor especificado no existe o no está activo.' 
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'CONDUCTOR_NOT_AVAILABLE',
+                        message: 'El conductor especificado no existe o no está activo.'
+                    }
                 });
             }
 
@@ -271,8 +327,12 @@ const crearVehiculo = async (req, res) => {
 
             if (vehiculoAsignado.length > 0) {
                 await connection.rollback();
-                return res.status(400).json({ 
-                    message: 'El conductor ya tiene un vehículo asignado.' 
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'CONDUCTOR_BUSY',
+                        message: 'El conductor ya tiene un vehículo asignado.'
+                    }
                 });
             }
         }
@@ -280,8 +340,8 @@ const crearVehiculo = async (req, res) => {
         // Insertar vehículo
         const [result] = await connection.query(`
             INSERT INTO Vehiculos (
-                numVehiculo, plaVehiculo, marVehiculo, modVehiculo, 
-                anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, 
+                numVehiculo, plaVehiculo, marVehiculo, modVehiculo,
+                anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo,
                 idEmpresa, idConductorAsignado
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
@@ -300,14 +360,25 @@ const crearVehiculo = async (req, res) => {
         await connection.commit();
 
         res.status(201).json({
+            success: true,
             message: 'Vehículo creado exitosamente.',
-            vehiculoId: result.insertId
+            data: {
+                vehiculoId: result.insertId,
+                numVehiculo: numVehiculo.trim(),
+                plaVehiculo: plaVehiculo.trim().toUpperCase()
+            }
         });
 
     } catch (error) {
         await connection.rollback();
         console.error('Error al crear vehículo:', error);
-        res.status(500).json({ message: 'Error del servidor al crear vehículo.' });
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Error del servidor al crear vehículo.'
+            }
+        });
     } finally {
         connection.release();
     }
