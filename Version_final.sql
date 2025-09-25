@@ -1,10 +1,5 @@
-DROP DATABASE IF EXISTS transync;
-
--- Creación de la base de datos transync.
-CREATE DATABASE transync CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Sentencia para usar la base de datos recién creada.
-USE transync;
+-- Usar la base de datos railway proporcionada por Railway
+USE railway;
 
 -- =====================================================
 -- TABLAS PRINCIPALES DEL SISTEMA
@@ -346,23 +341,23 @@ CREATE TABLE IF NOT EXISTS RespuestasPredefinidas (
 -- INSERCION DE DATOS INICIALES PARA LAS DIFERENTES TABLAS DEL SISTEMA EN ORDEN DE DEPENDENCIA.
 -- Tabla #1
 -- Insercion de datos en la tabla Roles.
-INSERT INTO Roles (nomRol) VALUES
+INSERT IGNORE INTO Roles (nomRol) VALUES
 -- idRol 1.
 ('SUPERADMIN'),
--- idRol 2.
+-- idRol2.
 ('GESTOR'),
 -- idRol 3.
 ('CONDUCTOR');
 
 -- Tabla #2
-INSERT INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa)
+INSERT IGNORE INTO Empresas (nomEmpresa, nitEmpresa, dirEmpresa, emaEmpresa, telEmpresa)
 VALUES
     -- idEmpresa = 1.
     ('Expreso La Sabana S.A.S', '901234567', ' Dg. 23 #69 60, Bogotá', 'expresolasabana@gmail.com', '3021234567');
 
 -- Tabla #3
 -- Insercion de Usuarios.
-INSERT INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, passwordHash, idRol, idEmpresa, estActivo)
+INSERT IGNORE INTO Usuarios (email, nomUsuario, apeUsuario, numDocUsuario, telUsuario, passwordHash, idRol, idEmpresa, estActivo)
 VALUES
     -- Password: admin123
     -- Email, nombre(s), apellido(s), numero de documento, telefono, contraseña hash, idRol, idEmpresa y estadoActivo (0=False, 1=True) del Usuario.
@@ -397,7 +392,7 @@ VALUES
 
 -- Tabla #4
 -- Insertar conductores de ejemplo
-INSERT INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, estConductor, idEmpresa)
+INSERT IGNORE INTO Conductores (idUsuario, tipLicConductor, fecVenLicConductor, estConductor, idEmpresa)
 VALUES
         -- idUsuario, tipo de licencia, fecha de vencimiento de la licencia, estado del Conductor y Empresa a la que pertencece de momento solo existe una empresa 1.
         (5,'B1','2026-05-15', 'ACTIVO', 1),
@@ -408,7 +403,7 @@ VALUES
 
 -- Tabla #5
 -- Insertar rutas de ejemplo
-INSERT INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa) 
+INSERT IGNORE INTO Rutas (nomRuta, oriRuta, desRuta, idEmpresa)
 VALUES
     ('Ruta Norte-Centro', 'Terminal Norte Bogotá', 'Centro Internacional Bogotá', 1),
     ('Expreso Medellín-Rionegro', 'Terminal Sur Medellín', 'Aeropuerto José María Córdova', 1),
@@ -418,7 +413,7 @@ VALUES
     ('Ruta Norte-Sur', 'Portal Norte', 'Portal Sur', 1);
 
 -- Insertar vehículos de ejemplo
-INSERT INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa) 
+INSERT IGNORE INTO Vehiculos (numVehiculo, plaVehiculo, marVehiculo, modVehiculo, anioVehiculo, fecVenSOAT, fecVenTec, estVehiculo, idEmpresa)
 VALUES
     -- idVehiculo = 1.
     ('BUS001', 'TSX123', 'Chevrolet', 'NPR Busetón', 2021, '2025-12-10', '2026-01-15', 'EN_RUTA', 1),
@@ -433,7 +428,7 @@ VALUES
 
 
 -- Insertar viajes de ejemplo
-INSERT INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje) 
+INSERT IGNORE INTO Viajes (idVehiculo, idConductor, idRuta, fecHorSalViaje, fecHorLleViaje, estViaje, obsViaje)
 VALUES
     -- Viaje 1
 (1, 5, 1, '2025-09-22 08:00:00', '2025-09-22 09:00:00', 'EN_CURSO', 'Viaje de prueba con conductor activo'),
@@ -454,7 +449,7 @@ VALUES
 (4, 1, 6, '2025-09-23 14:00:00', '2025-09-23 15:45:00', 'PROGRAMADO', 'Ruta completa Norte-Sur');
 
 -- Insertar interacciones del chatbot (10 ejemplos)
-INSERT INTO InteraccionesChatbot (mensaje, respuesta, intencion, idEmpresa, idUsuario, tiempoRespuesta, exitosa, valoracion, ipUsuario) 
+INSERT IGNORE INTO InteraccionesChatbot (mensaje, respuesta, intencion, idEmpresa, idUsuario, tiempoRespuesta, exitosa, valoracion, ipUsuario)
 VALUES
     ('Hola, ¿cómo estás?', '¡Hola! Soy tu asistente de TransSync. ¿En qué puedo ayudarte hoy?', 'saludo', 1, 1, 120, 1, 5, '192.168.1.100'),
     ('¿Cuáles son los conductores disponibles?', 'Actualmente tenemos 3 conductores activos: Pedro García, María López y Juan Hernández.', 'conductores', 1, 2, 85, 1, 4, '192.168.1.101'),
@@ -468,11 +463,11 @@ VALUES
     ('¿Hay algún problema con el sistema?', 'El sistema está funcionando correctamente. ¿Hay algo específico que te preocupa?', 'ayuda', 1, 2, 140, 1, 4, '192.168.1.109');
 
 -- Insertar configuración del chatbot (para cada empresa)
-INSERT INTO ConfiguracionChatbot (idEmpresa, mensajeBienvenida, mensajeNoComprendido, mensajeDespedida) VALUES
+INSERT IGNORE INTO ConfiguracionChatbot (idEmpresa, mensajeBienvenida, mensajeNoComprendido, mensajeDespedida) VALUES
 (1, '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy con tu flota de transporte?', 'Lo siento, no pude entender tu consulta. ¿Puedes ser más específico o reformular tu pregunta?', '¡Gracias por usar TransSync! Que tengas un excelente día.');
 
 -- Insertar respuestas predefinidas (15 ejemplos)
-INSERT INTO RespuestasPredefinidas (idEmpresa, palabrasClave, categoria, respuesta, prioridad, activa) VALUES
+INSERT IGNORE INTO RespuestasPredefinidas (idEmpresa, palabrasClave, categoria, respuesta, prioridad, activa) VALUES
 (1, 'hola,saludos,buenos dias,buenas tardes,buenas noches', 'saludo', '¡Hola! Soy tu asistente virtual de TransSync. ¿En qué puedo ayudarte hoy?', 10, 1),
 (1, 'conductores,choferes,pilotos,disponibles,activos', 'conductores', 'Actualmente tenemos conductores activos: Pedro García, María López, Juan Hernández, Sofia Torres y Diego Ramírez.', 9, 1),
 (1, 'vehiculos,camiones,carros,flota,disponibles', 'vehiculos', 'Nuestra flota incluye: Chevrolet Spark GT (ABC123), Renault Logan (DEF456), Toyota Corolla (GHI789), Nissan Sentra (JKL012) y Mazda CX-5 (MNO345).', 9, 1),
@@ -539,19 +534,19 @@ CREATE TABLE IF NOT EXISTS UserActivity (
 -- =====================================================
 
 -- Insertar preferencias de usuario para algunos usuarios
-INSERT INTO UserPreferences (idUsuario, preferences) VALUES
+INSERT IGNORE INTO UserPreferences (idUsuario, preferences) VALUES
 (1, '{"theme": "dark", "language": "es", "notifications": {"email": true, "push": false, "sms": true}, "dashboard": {"defaultView": "overview", "itemsPerPage": 15, "autoRefresh": true}}'),
 (2, '{"theme": "light", "language": "es", "notifications": {"email": true, "push": true, "sms": false}, "dashboard": {"defaultView": "analytics", "itemsPerPage": 20, "autoRefresh": false}}'),
 (3, '{"theme": "dark", "language": "es", "notifications": {"email": true, "push": true, "sms": true}, "dashboard": {"defaultView": "overview", "itemsPerPage": 10, "autoRefresh": true}}');
 
 -- Insertar configuración de notificaciones para algunos usuarios
-INSERT INTO NotificationSettings (idUsuario, notificationSettings) VALUES
+INSERT IGNORE INTO NotificationSettings (idUsuario, notificationSettings) VALUES
 (1, '{"newMessages": true, "systemUpdates": true, "securityAlerts": true, "maintenanceReminders": false, "reportNotifications": true, "emailFrequency": "immediate"}'),
 (2, '{"newMessages": true, "systemUpdates": false, "securityAlerts": true, "maintenanceReminders": true, "reportNotifications": false, "emailFrequency": "daily"}'),
 (3, '{"newMessages": true, "systemUpdates": true, "securityAlerts": false, "maintenanceReminders": true, "reportNotifications": true, "emailFrequency": "weekly"}');
 
 -- Insertar actividad de usuario para algunos usuarios
-INSERT INTO UserActivity (idUsuario, type, description, ipAddress, userAgent) VALUES
+INSERT IGNORE INTO UserActivity (idUsuario, type, description, ipAddress, userAgent) VALUES
 (1, 'login', 'Inicio de sesión exitoso', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
 (1, 'profile_update', 'Actualización de perfil personal', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
 (1, 'password_change', 'Cambio de contraseña exitoso', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
@@ -560,184 +555,3 @@ INSERT INTO UserActivity (idUsuario, type, description, ipAddress, userAgent) VA
 (3, 'login', 'Inicio de sesión exitoso', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'),
 (3, 'notifications_update', 'Actualización de configuración de notificaciones', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36');
 
--- =====================================================
--- TABLAS ADICIONALES PARA DASHBOARD Y NOTIFICACIONES
--- =====================================================
-
--- -----------------------------------------------------
--- Tabla: dashboard_cache
--- Almacena datos cacheados del dashboard para mejorar rendimiento
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS dashboard_cache (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    tipo VARCHAR(50) NOT NULL COMMENT 'Tipo de datos cacheados: stats, realtime, alerts, charts',
-    datos JSON NOT NULL COMMENT 'Datos cacheados en formato JSON',
-    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL COMMENT 'Fecha de expiración del cache',
-    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    INDEX idx_tipo_empresa (tipo, idEmpresa),
-    INDEX idx_expires_at (expires_at),
-    INDEX idx_last_accessed (last_accessed)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -----------------------------------------------------
--- Tabla: notifications
--- Sistema de notificaciones para usuarios
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS notifications (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL COMMENT 'ID del usuario que recibe la notificación',
-    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
-    tipo VARCHAR(50) NOT NULL COMMENT 'Tipo: info, warning, error, success, system',
-    titulo VARCHAR(255) NOT NULL COMMENT 'Título de la notificación',
-    mensaje TEXT NOT NULL COMMENT 'Mensaje de la notificación',
-    datos_adicionales JSON NULL COMMENT 'Datos adicionales en formato JSON',
-    prioridad ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-    leida BOOLEAN DEFAULT FALSE COMMENT 'Si la notificación fue leída',
-    reconocida BOOLEAN DEFAULT FALSE COMMENT 'Si la notificación fue reconocida',
-    fecha_lectura TIMESTAMP NULL COMMENT 'Fecha en que fue leída',
-    fecha_reconocimiento TIMESTAMP NULL COMMENT 'Fecha en que fue reconocida',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    INDEX idx_user_id (user_id),
-    INDEX idx_empresa (idEmpresa),
-    INDEX idx_tipo (tipo),
-    INDEX idx_prioridad (prioridad),
-    INDEX idx_leida (leida),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -----------------------------------------------------
--- Tabla: system_events
--- Registro de eventos del sistema para auditoría
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS system_events (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
-    tipo_evento VARCHAR(100) NOT NULL COMMENT 'Tipo de evento: conductor_created, vehiculo_updated, etc.',
-    descripcion TEXT NOT NULL COMMENT 'Descripción del evento',
-    datos_evento JSON NULL COMMENT 'Datos del evento en formato JSON',
-    usuario_responsable INT NULL COMMENT 'ID del usuario que generó el evento',
-    ip_origen VARCHAR(45) NULL COMMENT 'IP de origen del evento',
-    user_agent VARCHAR(255) NULL COMMENT 'User agent del cliente',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX idx_empresa (idEmpresa),
-    INDEX idx_tipo_evento (tipo_evento),
-    INDEX idx_usuario_responsable (usuario_responsable),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -----------------------------------------------------
--- Tabla: user_sessions
--- Control de sesiones de usuario para seguridad
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS user_sessions (
-    id VARCHAR(255) PRIMARY KEY COMMENT 'ID único de la sesión',
-    user_id INT NOT NULL COMMENT 'ID del usuario',
-    idEmpresa INT NOT NULL COMMENT 'ID de la empresa',
-    ip_address VARCHAR(45) NULL COMMENT 'IP del cliente',
-    user_agent TEXT NULL COMMENT 'User agent del navegador',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL COMMENT 'Fecha de expiración de la sesión',
-    is_active BOOLEAN DEFAULT TRUE COMMENT 'Si la sesión está activa',
-
-    INDEX idx_user_id (user_id),
-    INDEX idx_empresa (idEmpresa),
-    INDEX idx_expires_at (expires_at),
-    INDEX idx_is_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- DATOS DE PRUEBA PARA NUEVAS TABLAS
--- =====================================================
-
--- Insertar datos de prueba para dashboard_cache
-INSERT INTO dashboard_cache (tipo, datos, idEmpresa, expires_at) VALUES
-('stats', '{"totalVehiculos": 5, "totalConductores": 5, "totalRutas": 6, "viajesActivos": 1}', 1, DATE_ADD(NOW(), INTERVAL 1 HOUR)),
-('realtime', '{"viajesEnCurso": 1, "alertasCriticas": 0, "vehiculosActivos": 4}', 1, DATE_ADD(NOW(), INTERVAL 30 MINUTE)),
-('alerts', '{"alertasPendientes": 2, "alertasCriticas": 0, "alertasWarning": 2}', 1, DATE_ADD(NOW(), INTERVAL 15 MINUTE));
-
--- Insertar notificaciones de prueba
-INSERT INTO notifications (user_id, idEmpresa, tipo, titulo, mensaje, prioridad, leida) VALUES
-(1, 1, 'info', 'Bienvenido al sistema', 'Tu cuenta ha sido configurada exitosamente', 'medium', FALSE),
-(1, 1, 'warning', 'SOAT próximo a vencer', 'El vehículo TSX123 tiene el SOAT próximo a vencer', 'high', FALSE),
-(1, 1, 'info', 'Mantenimiento completado', 'El vehículo YHG456 ha completado su mantenimiento', 'medium', TRUE),
-(2, 1, 'warning', 'Licencia próxima a vencer', 'La licencia del conductor Ana Gómez vence pronto', 'high', FALSE);
-
--- Insertar eventos del sistema de prueba
-INSERT INTO system_events (idEmpresa, tipo_evento, descripcion, datos_evento, usuario_responsable) VALUES
-(1, 'conductor_created', 'Nuevo conductor registrado en el sistema', '{"idConductor": 1, "nomConductor": "Ana", "apeConductor": "Gómez"}', 1),
-(1, 'vehiculo_updated', 'Vehículo actualizado - cambio de estado', '{"idVehiculo": 2, "plaVehiculo": "YHG456", "estVehiculo": "EN_MANTENIMIENTO"}', 1),
-(1, 'viaje_iniciado', 'Nuevo viaje iniciado', '{"idViaje": 1, "idVehiculo": 1, "idConductor": 5}', 1),
-(1, 'viaje_completado', 'Viaje finalizado exitosamente', '{"idViaje": 4, "idVehiculo": 1, "idConductor": 1}', 1);
-
--- Insertar sesiones de prueba
-INSERT INTO user_sessions (id, user_id, idEmpresa, ip_address, expires_at) VALUES
-('session_admin_001', 1, 1, '192.168.1.100', DATE_ADD(NOW(), INTERVAL 8 HOUR)),
-('session_gestor_001', 2, 1, '192.168.1.101', DATE_ADD(NOW(), INTERVAL 8 HOUR)),
-('session_gestor_002', 3, 1, '192.168.1.102', DATE_ADD(NOW(), INTERVAL 8 HOUR));
-
--- Mostrar resumen de datos insertados
-SELECT
-    'Empresas' as tabla,
-    COUNT(*) as registros
-FROM Empresas
-UNION ALL
-SELECT
-    'Usuarios',
-    COUNT(*)
-FROM Usuarios
-UNION ALL
-SELECT
-    'Conductores',
-    COUNT(*)
-FROM Conductores
-UNION ALL
-SELECT
-    'Vehículos',
-    COUNT(*)
-FROM Vehiculos
-UNION ALL
-SELECT
-    'Rutas',
-    COUNT(*)
-FROM Rutas
-UNION ALL
-SELECT
-    'Viajes',
-    COUNT(*)
-FROM Viajes
-UNION ALL
-SELECT
-    'Interacciones Chatbot',
-    COUNT(*)
-FROM InteraccionesChatbot
-UNION ALL
-SELECT
-    'Configuración Chatbot',
-    COUNT(*)
-FROM ConfiguracionChatbot
-UNION ALL
-SELECT
-    'Respuestas Predefinidas',
-    COUNT(*)
-FROM RespuestasPredefinidas
-UNION ALL
-SELECT
-    'UserPreferences',
-    COUNT(*)
-FROM UserPreferences
-UNION ALL
-SELECT
-    'NotificationSettings',
-    COUNT(*)
-FROM NotificationSettings
-UNION ALL
-SELECT
-    'UserActivity',
-    COUNT(*)
-FROM UserActivity;

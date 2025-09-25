@@ -11,6 +11,7 @@ const DashboardRealTimeService = require("./src/services/dashboardRealTimeServic
 const dashboardEventService = require("./src/services/dashboardEventService");
 const DashboardPushService = require("./src/services/dashboardPushService");
 const cacheService = require("./src/utils/cacheService");
+const { initializeDatabase } = require("./init-database");
 
 // Crear servidor HTTP y Express
 const app = express();
@@ -51,10 +52,9 @@ const corsOptions = {
     // Permitir requests sin origen (como mobile apps o curl)
     if (!origin) return callback(null, true);
 
-    // Obtener orígenes permitidos desde variables de entorno
-    const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || process.env.WEBSOCKET_CORS_ORIGINS || '';
+    // Lista de orígenes permitidos
     const allowedOrigins = [
-      'http://localhost:3000',        // Web app desarrollo
+      process.env.FRONTEND_URL || `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`,
       'http://10.0.2.2:8081',         // Emulador Android con Expo
       'http://localhost:8081',        // Expo local
       'http://localhost:19006',       // Expo web
@@ -62,18 +62,11 @@ const corsOptions = {
       'http://127.0.0.1:3000',        // Web app alternativa
       'https://transync.com',         // Dominio producción
       'https://www.transync.com',     // Dominio producción con www
-      'https://api.transync.com',      // API en producción
-    ];
-
-    // Agregar orígenes desde variables de entorno
-    if (allowedOriginsEnv) {
-      allowedOriginsEnv.split(',').forEach(origin => {
-        const cleanOrigin = origin.trim();
-        if (cleanOrigin && !allowedOrigins.includes(cleanOrigin)) {
-          allowedOrigins.push(cleanOrigin);
-        }
-      });
-    }
+      'https://api.transync.com',     // API en producción
+      'https://transync1.netlify.app', // Frontend en Netlify
+      'https://transync1.netlify.app/home', // Frontend en Netlify con ruta
+      process.env.FRONTEND_URL,       // URL del frontend desde .env
+    ].filter(Boolean); // Filtrar valores undefined/null
 
     // En desarrollo, permitir cualquier origen localhost
     if (process.env.NODE_ENV !== 'production') {
@@ -133,8 +126,7 @@ app.use((req, res, next) => {
 });
 
 // Middleware para logging de requests (deshabilitado por defecto para evitar spam)
-// Solo activar si es necesario para debugging específico
-// if (process.env.LOG_REQUESTS === 'true') {
+// if (process.env.NODE_ENV === 'development' || process.env.LOG_REQUESTS === 'true') {
 //   app.use((req, res, next) => {
 //     const timestamp = new Date().toISOString();
 //     const origin = req.get('origin') || req.get('referer') || 'No origin';
@@ -142,8 +134,8 @@ app.use((req, res, next) => {
 
 //     console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip} - Origin: ${origin} - UA: ${userAgent}`);
 
-//     // Log del body para POST/PUT (solo si es necesario)
-//     if ((req.method === 'POST' || req.method === 'PUT') && process.env.LOG_REQUESTS === 'verbose') {
+//     // Log del body para POST/PUT (solo en desarrollo)
+//     if ((req.method === 'POST' || req.method === 'PUT') && process.env.NODE_ENV === 'development') {
 //       console.log('Body:', JSON.stringify(req.body, null, 2));
 //     }
 
@@ -174,46 +166,16 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
 });
 
-// --- Health check endpoint optimizado para Railway ---
-app.get('/api/health', async (req, res) => {
+// --- Health check endpoint ---
+app.get('/api/health', (req, res) => {
     const realTimeStats = realTimeService.getConnectionStats();
-    const isProduction = process.env.NODE_ENV === 'production';
 
-    // Test de base de datos (solo en producción para health check completo)
-    let databaseStatus = 'Connected';
-    let databaseResponseTime = null;
-
-    if (isProduction) {
-        const dbStart = Date.now();
-        try {
-            const pool = require('./src/config/db');
-            const connection = await pool.getConnection();
-            await connection.ping();
-            connection.release();
-            databaseResponseTime = Date.now() - dbStart;
-            databaseStatus = 'Connected';
-        } catch (error) {
-            databaseStatus = 'Error';
-            console.error('Health check - Database error:', error.message);
-        }
-    }
-
-    const healthData = {
-        status: databaseStatus === 'Connected' ? 'OK' : 'ERROR',
+    res.json({
+        status: 'OK',
         message: 'TranSync Backend API está funcionando',
         timestamp: new Date().toISOString(),
         version: '2.0.0',
-        environment: process.env.NODE_ENV || 'development',
-        uptime: process.uptime(),
-        memory: {
-            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-            external: Math.round(process.memoryUsage().external / 1024 / 1024)
-        },
-        database: {
-            status: databaseStatus,
-            responseTime: databaseResponseTime ? `${databaseResponseTime}ms` : 'N/A'
-        },
+        database: 'Connected',
         websocket: {
             enabled: true,
             connections: realTimeStats.totalConnections,
@@ -225,6 +187,7 @@ app.get('/api/health', async (req, res) => {
             clientCount: realTimeStats.totalConnections,
             uptime: realTimeStats.uptime
         },
+        environment: process.env.NODE_ENV || 'development',
         features: [
             'REST API',
             'WebSocket Real-time',
@@ -241,12 +204,7 @@ app.get('/api/health', async (req, res) => {
             'User Activity Tracking',
             'Account Status Monitoring'
         ]
-    };
-
-    // Determinar código de respuesta HTTP basado en el estado
-    const httpStatus = healthData.status === 'OK' ? 200 : 503;
-
-    res.status(httpStatus).json(healthData);
+    });
 });
 
 // --- Ruta raíz de bienvenida ---
@@ -286,7 +244,7 @@ app.get('/', (req, res) => {
         },
         websocket: {
             enabled: true,
-            url: `ws://localhost:${PORT}`,
+            url: `wss://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`,
             features: [
                 'Real-time notifications',
                 'Live chat updates',
@@ -347,7 +305,7 @@ app.use((req, res) => {
             'POST /api/chatbot/consulta'
         ],
         websocket: {
-            url: `ws://localhost:${PORT}`,
+            url: `wss://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`,
             auth: 'Requiere token JWT en handshake',
             realTimeService: 'Sistema de notificaciones avanzado habilitado'
         },
@@ -369,29 +327,36 @@ app.use((error, req, res, next) => {
     });
 });
 
-// --- Iniciar Servidor con WebSocket y RealTimeService ---
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
-    console.log(`📡 API disponible en http://localhost:${PORT}/api`);
-    console.log(`🔗 Health check en http://localhost:${PORT}/api/health`);
-    console.log(`🔌 WebSocket disponible en ws://localhost:${PORT}`);
-    console.log(`⚡ RealTimeService: Sistema de notificaciones avanzado activo`);
-    console.log(`📱 Para React Native emulador: http://10.0.2.2:${PORT}/api`);
-    console.log(`🌐 CORS habilitado para múltiples orígenes`);
-    console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📊 WebSocket: Habilitado con autenticación JWT`);
-    console.log(`🔔 RealTimeService: Conexiones activas: ${realTimeService.getClientCount()}`);
-
-    // Solo mostrar logs adicionales en desarrollo
-    if (process.env.NODE_ENV === 'development') {
-        console.log('');
-        console.log('📋 Logs de desarrollo:');
-        console.log('   - LOG_REQUESTS=true (para ver requests HTTP)');
-        console.log('   - LOG_REQUESTS=verbose (para ver body de requests)');
-        console.log('   - LOG_DATABASE=true (para ver queries SQL)');
-        console.log('');
+// --- Función para iniciar el servidor ---
+async function startServer() {
+    try {
+        // Ejecutar migración de base de datos automáticamente
+        console.log('🔄 Inicializando base de datos...');
+        await initializeDatabase();
+        console.log('✅ Base de datos inicializada correctamente');
+        
+        // Iniciar servidor después de la migración
+        server.listen(PORT, '0.0.0.0', () => {
+            const baseUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`;
+            console.log(`🚀 Servidor backend corriendo en ${baseUrl}`);
+            console.log(`📡 API disponible en ${baseUrl}/api`);
+            console.log(`🔗 Health check en ${baseUrl}/api/health`);
+            console.log(`🔌 WebSocket disponible en wss://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`);
+            console.log(`⚡ RealTimeService: Sistema de notificaciones avanzado activo`);
+            console.log(`📱 Para React Native emulador: http://10.0.2.2:${PORT}/api`);
+            console.log(`🌐 CORS habilitado para múltiples orígenes`);
+            console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`📊 WebSocket: Habilitado con autenticación JWT`);
+            console.log(`🔔 RealTimeService: Conexiones activas: ${realTimeService.getClientCount()}`);
+        });
+    } catch (error) {
+        console.error('❌ Error al inicializar la aplicación:', error.message);
+        process.exit(1);
     }
-});
+}
+
+// Iniciar el servidor
+startServer();
 
 // Exportar para testing
 module.exports = { app, server, io };

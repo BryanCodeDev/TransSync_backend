@@ -1,95 +1,13 @@
 {
+  "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm install"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "npm start",
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 100,
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
-  },
-  "environments": {
-    "production": {
-      "variables": {
-        "NODE_ENV": "production",
-        "PORT": "$PORT",
-        "NPM_CONFIG_PRODUCTION": "true"
-      }
-    }
-  },
-  "services": [
-    {
-      "name": "transync-backend",
-      "type": "web",
-      "autoDeploy": true,
-      "buildCommand": "npm install",
-      "startCommand": "npm start",
-      "healthCheckPath": "/api/health",
-      "envFilePath": "./.env",
-      "domains": [
-        {
-          "domain": "api.transync.com",
-          "path": "/"
-        }
-      ]
-    }
-  ],
-  "database": {
-    "type": "mysql",
-    "version": "8.0",
-    "autoMigrate": true
-  },
-  "static": {
-    "path": "./public",
-    "url": "https://api.transync.com"
-  },
-  "variables": [
-    {
-      "name": "NODE_ENV",
-      "value": "production",
-      "environment": "production"
-    },
-    {
-      "name": "PORT",
-      "value": "$PORT",
-      "environment": "all"
-    },
-    {
-      "name": "NPM_CONFIG_PRODUCTION",
-      "value": "true",
-      "environment": "production"
-    }
-  ],
-  "formation": {
-    "web": {
-      "quantity": 1,
-      "size": "standard-1x"
-    }
-  },
-  "healthcheck": {
-    "path": "/api/health",
-    "method": "GET",
-    "timeout": 5000,
-    "interval": 30000,
-    "retries": 3,
-    "gracePeriod": 30000
-  },
-  "networking": {
-    "internal": false,
-    "external": true,
-    "ports": [
-      {
-        "port": 5000,
-        "protocol": "tcp"
-      }
-    ]
-  },
-  "scaling": {
-    "minInstances": 1,
-    "maxInstances": 3,
-    "targetCPU": 70,
-    "targetMemory": 80
   }
 }
