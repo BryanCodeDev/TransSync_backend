@@ -160,6 +160,11 @@ async function generateIntelligentResponse(nlpAnalysis, queryResult, conversatio
                 respuesta = await generateSystemStatusResponse(queryResult);
                 break;
 
+            case 'alerts':
+            case 'expiry_alerts':
+                respuesta = await generateAlertsResponse(queryResult);
+                break;
+
             case 'greeting':
                 respuesta = generateGreetingResponse(conversationContext);
                 break;
@@ -350,6 +355,27 @@ async function generateSystemStatusResponse(queryResult) {
 }
 
 /**
+ * Generar respuesta para alertas de vencimientos
+ */
+async function generateAlertsResponse(queryResult) {
+    if (!queryResult || queryResult.length === 0) {
+        return '✅ ¡Excelente! No hay alertas de vencimientos pendientes.';
+    }
+
+    let respuesta = `⚠️ **Alertas de Vencimientos Pendientes:**\n\n`;
+
+    queryResult.forEach((alerta, index) => {
+        respuesta += `${index + 1}. 📋 **${alerta.tipoDocumento.replace('_', ' ')}**\n`;
+        respuesta += `   📝 ${alerta.descripciones || 'Sin descripción'}\n`;
+        respuesta += `   🔢 Total: ${alerta.totalAlertas} alerta(s)\n\n`;
+    });
+
+    respuesta += 'Te recomiendo revisar y renovar estos documentos antes de la fecha de vencimiento.';
+
+    return respuesta;
+}
+
+/**
  * Generar respuesta de saludo contextual
  */
 function generateGreetingResponse(conversationContext) {
@@ -373,7 +399,7 @@ function generateGreetingResponse(conversationContext) {
  * Generar respuesta de ayuda
  */
 function generateHelpResponse() {
-    return `🔧 **¿En qué puedo ayudarte?**\n\nPuedo proporcionarte información inteligente sobre:\n\n🚗 **Vehículos:** Estado, disponibilidad, mantenimiento\n👨‍💼 **Conductores:** Disponibilidad, licencias, asignaciones\n📍 **Rutas:** Recorridos registrados y programación\n⏰ **Horarios:** Viajes programados y en curso\n📊 **Sistema:** Estado general y estadísticas\n⚠️ **Vencimientos:** Alertas de documentos próximos a vencer\n\n**Ejemplos de consultas inteligentes:**\n• "¿Cuántos conductores activos hay?"\n• "¿Qué vehículos están disponibles?"\n• "¿Hay licencias por vencer?"\n• "¿Cuál es el estado general del sistema?"\n• "Muéstrame las rutas disponibles"\n\n¡Solo escribe tu consulta de forma natural!`;
+    return `🔧 **¿En qué puedo ayudarte?**\n\nPuedo proporcionarte información inteligente sobre:\n\n🚗 **Vehículos:** Estado, disponibilidad, mantenimiento\n👨‍💼 **Conductores:** Disponibilidad, licencias, asignaciones\n📍 **Rutas:** Recorridos registrados y programación\n⏰ **Horarios:** Viajes programados y en curso\n📊 **Sistema:** Estado general y estadísticas\n⚠️ **Vencimientos:** Alertas de documentos próximos a vencer\n📋 **Dashboard:** Resumen operacional y reportes\n\n**Ejemplos de consultas inteligentes:**\n• "¿Cuántos conductores activos hay?"\n• "¿Qué vehículos están disponibles?"\n• "¿Hay licencias por vencer?"\n• "¿Cuál es el estado general del sistema?"\n• "Muéstrame las rutas disponibles"\n• "¿Hay alertas de vencimientos?"\n• "¿Cuál es el resumen del dashboard?"\n\n¡Solo escribe tu consulta de forma natural!`;
 }
 
 /**
@@ -481,7 +507,79 @@ const getEstadisticasChatbot = async (req, res) => {
     }
 };
 
+/**
+ * Obtener estadísticas de aprendizaje del chatbot
+ */
+const getLearningStats = async (req, res) => {
+    try {
+        const { idUsuario, idEmpresa = 1 } = req.query;
+
+        if (!idUsuario) {
+            return res.status(400).json({
+                message: 'ID de usuario es requerido'
+            });
+        }
+
+        const learningStats = conversationMemory.getLearningStats(idUsuario, idEmpresa);
+        const suggestions = conversationMemory.getSuggestions(idUsuario, idEmpresa);
+
+        res.json({
+            success: true,
+            learningStats,
+            smartSuggestions: suggestions,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo estadísticas de aprendizaje:', error);
+        res.status(500).json({
+            message: 'Error obteniendo estadísticas de aprendizaje',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Limpiar memoria de conversación (para mantenimiento)
+ */
+const clearConversationMemory = async (req, res) => {
+    try {
+        const { idUsuario, idEmpresa = 1 } = req.body;
+
+        if (idUsuario) {
+            // Limpiar memoria específica del usuario
+            conversationMemory.clearUserMemory(idUsuario, idEmpresa);
+            res.json({
+                success: true,
+                message: 'Memoria de conversación del usuario eliminada'
+            });
+        } else {
+            // Limpiar toda la memoria (requiere confirmación especial)
+            const { confirm } = req.body;
+            if (confirm === 'YES') {
+                conversationMemory.clearMemory();
+                res.json({
+                    success: true,
+                    message: 'Toda la memoria de conversación eliminada'
+                });
+            } else {
+                res.status(400).json({
+                    message: 'Se requiere confirmación explícita para eliminar toda la memoria'
+                });
+            }
+        }
+
+    } catch (error) {
+        console.error('Error limpiando memoria:', error);
+        res.status(500).json({
+            message: 'Error limpiando memoria de conversación'
+        });
+    }
+};
+
 module.exports = {
     procesarConsulta,
-    getEstadisticasChatbot
+    getEstadisticasChatbot,
+    getLearningStats,
+    clearConversationMemory
 };

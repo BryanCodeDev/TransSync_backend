@@ -158,6 +158,116 @@ async function initializeDatabase() {
             console.log('⚠️  Usuarios iniciales ya existen, omitiendo inserción');
         }
 
+        // Verificar y crear tabla PasswordResets si no existe
+        console.log('🔍 Verificando tabla PasswordResets...');
+        const [passwordResetTables] = await connection.execute(`
+            SELECT TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'PasswordResets'
+        `, [process.env.DB_DATABASE || 'railway']);
+
+        if (passwordResetTables.length === 0) {
+            console.log('📋 Creando tabla PasswordResets...');
+
+            await connection.execute(`
+                CREATE TABLE PasswordResets (
+                    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+                    userId INT NOT NULL,
+                    token VARCHAR(64) NOT NULL UNIQUE,
+                    expiresAt DATETIME NOT NULL,
+                    used BOOLEAN DEFAULT FALSE,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_user_id (userId),
+                    INDEX idx_token (token),
+                    INDEX idx_expires_at (expiresAt),
+                    INDEX idx_used (used),
+                    FOREIGN KEY (userId) REFERENCES Usuarios(idUsuario) ON DELETE CASCADE
+                )
+            `);
+
+            console.log('✅ Tabla PasswordResets creada exitosamente');
+        } else {
+            console.log('ℹ️  La tabla PasswordResets ya existe');
+        }
+
+        // Limpiar tokens expirados (mantenimiento)
+        const [result] = await connection.execute(
+            'DELETE FROM PasswordResets WHERE expiresAt < NOW() OR used = true'
+        );
+
+        if (result.affectedRows > 0) {
+            console.log(`🧹 Eliminados ${result.affectedRows} tokens expirados o usados`);
+        }
+
+        // Verificar y crear tablas faltantes para dashboard
+        console.log('🔍 Verificando tablas de dashboard...');
+
+        // Crear tabla ResumenOperacional si no existe
+        const [resumenTables] = await connection.execute(`
+            SELECT TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'ResumenOperacional'
+        `, [process.env.DB_DATABASE || 'railway']);
+
+        if (resumenTables.length === 0) {
+            console.log('📋 Creando tabla ResumenOperacional...');
+
+            await connection.execute(`
+                CREATE TABLE ResumenOperacional (
+                    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+                    idEmpresa INT NOT NULL,
+                    conductoresActivos INT DEFAULT 0,
+                    vehiculosDisponibles INT DEFAULT 0,
+                    viajesEnCurso INT DEFAULT 0,
+                    viajesCompletados INT DEFAULT 0,
+                    alertasPendientes INT DEFAULT 0,
+                    fechaActualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_empresa (idEmpresa),
+                    INDEX idx_fecha (fechaActualizacion),
+                    FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
+                )
+            `);
+
+            console.log('✅ Tabla ResumenOperacional creada exitosamente');
+        } else {
+            console.log('ℹ️  La tabla ResumenOperacional ya existe');
+        }
+
+        // Crear tabla AlertasVencimientos si no existe
+        const [alertasTables] = await connection.execute(`
+            SELECT TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'AlertasVencimientos'
+        `, [process.env.DB_DATABASE || 'railway']);
+
+        if (alertasTables.length === 0) {
+            console.log('📋 Creando tabla AlertasVencimientos...');
+
+            await connection.execute(`
+                CREATE TABLE AlertasVencimientos (
+                    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+                    idEmpresa INT NOT NULL,
+                    tipoDocumento ENUM('LICENCIA_CONDUCCION', 'SOAT', 'TECNICO_MECANICA', 'SEGURO') NOT NULL,
+                    idReferencia INT NOT NULL COMMENT 'ID del conductor o vehículo relacionado',
+                    descripcion VARCHAR(255) NOT NULL,
+                    fechaVencimiento DATE NOT NULL,
+                    diasParaVencer INT NOT NULL,
+                    estado ENUM('PENDIENTE', 'VENCIDA', 'RESUELTA') DEFAULT 'PENDIENTE',
+                    fechaCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fechaResolucion TIMESTAMP NULL,
+                    INDEX idx_empresa (idEmpresa),
+                    INDEX idx_tipo (tipoDocumento),
+                    INDEX idx_estado (estado),
+                    INDEX idx_vencimiento (fechaVencimiento),
+                    FOREIGN KEY (idEmpresa) REFERENCES Empresas(idEmpresa) ON DELETE CASCADE
+                )
+            `);
+
+            console.log('✅ Tabla AlertasVencimientos creada exitosamente');
+        } else {
+            console.log('ℹ️  La tabla AlertasVencimientos ya existe');
+        }
+
         console.log('🎉 ¡Base de datos lista para usar!');
 
     } catch (error) {

@@ -69,7 +69,10 @@ const register = async (req, res) => {
 
         // Generar token de verificación y construir URL
         const verifyToken = jwt.sign({ id: newUserId }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        const verifyUrl = `http://localhost:5000/api/auth/verify?token=${verifyToken}`;
+        const baseUrl = process.env.NODE_ENV === 'production'
+            ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.railway.app'}`
+            : 'http://localhost:5000';
+        const verifyUrl = `${baseUrl}/api/auth/verify?token=${verifyToken}`;
 
         await sendEmail(
             email,
@@ -290,24 +293,43 @@ const verifyAccount = async (req, res) => {
 // OLVIDE MI CONTRASEÑA
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
+
+    // Validación de email requerido
     if (!email) {
-        return res.status(400).json({ message: "Correo electrónico requerido." });
+        return res.status(400).json({
+            message: "Correo electrónico requerido."
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({
+            message: 'Formato de email inválido'
+        });
     }
 
     try {
-        const [rows] = await pool.query("SELECT idUsuario FROM Usuarios WHERE email = ?", [email]);
+        // Verificar que el email existe en la base de datos
+        const [rows] = await pool.query("SELECT idUsuario FROM Usuarios WHERE email = ?", [email.toLowerCase()]);
 
         if (rows.length === 0) {
-            return res.status(404).json({ message: "Correo no registrado." });
+            return res.status(404).json({
+                message: 'El correo electrónico no está registrado.'
+            });
         }
 
         const userId = rows[0].idUsuario;
 
-        const resetToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "15m" });
+        // Generar token único de restablecimiento
+        const PasswordReset = require("../models/PasswordReset");
+        const { token } = await PasswordReset.create(userId);
 
-        const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+        // Obtener URL del frontend
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-        // Enviar correo
+        // Enviar correo con el nuevo template
         await sendEmail(
             email,
             "Restablece Tu Contraseña - TranSync",
@@ -354,7 +376,7 @@ const forgotPassword = async (req, res) => {
                     .email-button {
                         display: inline-block;
                         padding: 12px 25px;
-                        background-color: #dc3545;
+                        background-color: #28a745;
                         color: #ffffff;
                         text-decoration: none;
                         border-radius: 4px;
@@ -386,14 +408,14 @@ const forgotPassword = async (req, res) => {
                     <div class="email-body">
                         <p>¡Hola!</p>
                         <p>Has solicitado restablecer la contraseña de tu cuenta TranSync. Haz clic en el siguiente botón para continuar:</p>
-                        <a href="${resetUrl}" class="email-button" target="_blank">Restablecer mi contraseña</a>
-                        <p>Este enlace expirará en 15 minutos. Si no solicitaste este cambio, por favor ignora este correo.</p>
+                        <a href="${resetUrl}" class="email-button" target="_blank">Restablecer Contraseña</a>
+                        <p>Este enlace expirará en 1 hora. Si no solicitaste este cambio, por favor ignora este correo.</p>
                         <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
                         <p>¡Gracias por confiar en TranSync!</p>
                     </div>
                     <div class="footer">
                         <p>TranSync &copy; 2025</p>
-                        <p><a href="mailto:support@transync.com" style="color: #007bff;">support@transync.com</a></p>
+                        <p><a href="mailto:geminipruebas7@gmail.com" style="color: #007bff;">geminipruebas7@gmail.com</a></p>
                     </div>
                 </div>
             </body>
@@ -401,10 +423,14 @@ const forgotPassword = async (req, res) => {
             `
         );
 
-        res.json({ message: "Correo de restablecimiento enviado." });
+        res.status(200).json({
+            message: 'Se ha enviado un enlace de recuperación a su correo electrónico'
+        });
     } catch (error) {
         console.error("Error en forgotPassword:", error);
-        res.status(500).json({ message: "Error en el servidor." });
+        res.status(500).json({
+            message: "Error interno del servidor."
+        });
     }
 };
 
@@ -413,10 +439,14 @@ const resetPassword = async (req, res) => {
     const { token } = req.query;
     const { newPassword } = req.body;
 
+    // Validar que el token y la nueva contraseña estén presentes
     if (!token || !newPassword) {
-        return res.status(400).json({ message: "Token y nueva contraseña son requeridos." });
+        return res.status(400).json({
+            message: "Token y nueva contraseña son requeridos."
+        });
     }
 
+    // Validar que la nueva contraseña cumpla requisitos mínimos
     if (!esPasswordSegura(newPassword)) {
         return res.status(400).json({
             message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo."
@@ -424,25 +454,55 @@ const resetPassword = async (req, res) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.id;
+        // Verificar que el token sea válido y no haya expirado
+        const PasswordReset = require("../models/PasswordReset");
+        const resetToken = await PasswordReset.findByToken(token);
 
+        if (!resetToken) {
+            return res.status(400).json({
+                message: 'Token de restablecimiento inválido o expirado.'
+            });
+        }
+
+        // Encontrar al usuario asociado al token
+        const [userRows] = await pool.query(
+            "SELECT idUsuario FROM Usuarios WHERE idUsuario = ?",
+            [resetToken.userId]
+        );
+
+        if (userRows.length === 0) {
+            return res.status(404).json({
+                message: 'Usuario no encontrado.'
+            });
+        }
+
+        // Hash de la nueva contraseña
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
+        // Actualizar la contraseña del usuario
         const [result] = await pool.query(
             "UPDATE Usuarios SET passwordHash = ? WHERE idUsuario = ?",
-            [hashedPassword, userId]
+            [hashedPassword, resetToken.userId]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Usuario no encontrado." });
+            return res.status(404).json({
+                message: 'Usuario no encontrado.'
+            });
         }
 
-        res.json({ message: "Contraseña actualizada correctamente." });
+        // Invalidar el token (usarlo una sola vez)
+        await PasswordReset.markAsUsed(token);
+
+        res.status(200).json({
+            message: 'Contraseña restablecida exitosamente'
+        });
     } catch (error) {
         console.error("Error en resetPassword:", error);
-        res.status(400).json({ message: "Token inválido o expirado." });
+        res.status(500).json({
+            message: "Error interno del servidor."
+        });
     }
 };
 // LOGOUT
@@ -668,6 +728,124 @@ const healthCheck = async (req, res) => {
     }
 };
 
+// TEST EMAIL SERVICE
+const testEmailService = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email es requerido para la prueba"
+            });
+        }
+
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                message: 'Formato de email inválido'
+            });
+        }
+
+        // Verificar configuración del email service
+        const { verifyEmailConfig } = require("../utils/emailService");
+
+        const emailConfigOk = await verifyEmailConfig();
+        if (!emailConfigOk) {
+            return res.status(503).json({
+                message: "Servicio de email no está configurado correctamente"
+            });
+        }
+
+        // Enviar correo de prueba
+        const { sendEmail } = require("../utils/emailService");
+
+        const testHtml = `
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Prueba de Email - TranSync</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        background-color: #f4f4f9;
+                    }
+                    .email-container {
+                        width: 100%;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                    }
+                    .email-header {
+                        background-color: #28a745;
+                        color: #ffffff;
+                        padding: 20px;
+                        text-align: center;
+                    }
+                    .email-body {
+                        padding: 30px;
+                        color: #333333;
+                    }
+                    .success-icon {
+                        font-size: 48px;
+                        color: #28a745;
+                        text-align: center;
+                        margin: 20px 0;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="email-container">
+                    <div class="email-header">
+                        <h1>✅ Prueba de Email Exitosa</h1>
+                    </div>
+                    <div class="email-body">
+                        <div class="success-icon">📧</div>
+                        <p><strong>¡Excelente!</strong> El servicio de email de TranSync está funcionando correctamente.</p>
+                        <p>Este es un correo de prueba enviado desde el entorno de producción.</p>
+                        <p><strong>Información del sistema:</strong></p>
+                        <ul>
+                            <li>🌐 Entorno: ${process.env.NODE_ENV || 'development'}</li>
+                            <li>📧 Servicio: ${process.env.SENDGRID_API_KEY ? 'SendGrid' : 'Gmail'}</li>
+                            <li>⏰ Timestamp: ${new Date().toISOString()}</li>
+                            <li>🔗 Servidor: ${process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost'}</li>
+                        </ul>
+                        <p>Si recibiste este correo, significa que el sistema de verificación de cuentas está funcionando correctamente.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        await sendEmail(
+            email,
+            "🧪 Prueba de Servicio de Email - TranSync",
+            testHtml
+        );
+
+        res.json({
+            success: true,
+            message: "Correo de prueba enviado exitosamente",
+            timestamp: new Date().toISOString(),
+            emailService: process.env.SENDGRID_API_KEY ? 'SendGrid' : 'Gmail',
+            environment: process.env.NODE_ENV || 'development'
+        });
+
+    } catch (error) {
+        console.error("Error en test email service:", error);
+        res.status(500).json({
+            message: "Error al enviar correo de prueba",
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+};
+
 // VALIDACION DE CONTRASEÑA SEGURA
 function esPasswordSegura(password) {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -686,5 +864,6 @@ module.exports = {
     updateProfile,
     changePassword,
     healthCheck,
+    testEmailService,
     esPasswordSegura
 };
